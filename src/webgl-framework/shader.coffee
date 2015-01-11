@@ -38,9 +38,17 @@ boilerplate = '''
     float linstep(float edge0, float edge1, float value){
         return clamp((value-edge0)/(edge1-edge0), 0.0, 1.0);
     }
+    
+    float linstepOpen(float edge0, float edge1, float value){
+        return (value-edge0)/(edge1-edge0);
+    }
 
     vec2 linstep(vec2 edge0, vec2 edge1, vec2 value){
         return clamp((value-edge0)/(edge1-edge0), vec2(0.0), vec2(1.0));
+    }
+    
+    vec2 linstepOpen(vec2 edge0, vec2 edge1, vec2 value){
+        return (value-edge0)/(edge1-edge0);
     }
 '''
 
@@ -48,6 +56,15 @@ exports.Shader = class Shader extends ShaderObj
     constructor: (@gf, params) ->
         @gl = @gf.gl
 
+        @program    = @gl.createProgram()
+        @vs         = @gl.createShader @gl.VERTEX_SHADER
+        @fs         = @gl.createShader @gl.FRAGMENT_SHADER
+        @gl.attachShader @program, @vs
+        @gl.attachShader @program, @fs
+
+        @source params
+
+    source: (params) ->
         if typeof params is 'string'
             [common, vertex, fragment] = @splitSource params
         else if params instanceof sys.File
@@ -56,8 +73,8 @@ exports.Shader = class Shader extends ShaderObj
             common = []
             vertex = []
             fragment = []
-            for source in params
-                [c, v, f] = @splitSource source
+            for file in params
+                [c, v, f] = @splitSource file.read()
                 if c.length > 0 then common.push c
                 if v.length > 0 then vertex.push v
                 if f.length > 0 then fragment.push f
@@ -65,13 +82,7 @@ exports.Shader = class Shader extends ShaderObj
             common = common.join('\n')
             vertex = vertex.join('\n')
             fragment = fragment.join('\n')
-        
-        @program    = @gl.createProgram()
-        @vs         = @gl.createShader @gl.VERTEX_SHADER
-        @fs         = @gl.createShader @gl.FRAGMENT_SHADER
-        @gl.attachShader @program, @vs
-        @gl.attachShader @program, @fs
-        
+
         @setSource common:common, vertex:vertex, fragment:fragment
     
     destroy: ->
@@ -217,7 +228,7 @@ exports.Shader = class Shader extends ShaderObj
 
         if location?
             @use()
-            if a instanceof Array
+            if a instanceof Array or a instanceof Float32Array
                 @gl.uniform2fv location, a
             else
                 @gl.uniform2f location, a, b
@@ -228,10 +239,21 @@ exports.Shader = class Shader extends ShaderObj
 
         if location?
             @use()
-            if a instanceof Array
+            if a instanceof Array or a instanceof Float32Array
                 @gl.uniform3fv location, a
             else
                 @gl.uniform3f location, a, b, c
+        return @
+    
+    vec4: (name, a, b, c, d) ->
+        location = @uniformLocation name
+
+        if location?
+            @use()
+            if a instanceof Array or a instanceof Float32Array
+                @gl.uniform4fv location, a
+            else
+                @gl.uniform4f location, a, b, c, d
         return @
 
     int: (name, value) ->
@@ -249,7 +271,10 @@ exports.Shader = class Shader extends ShaderObj
         location = @uniformLocation name
         if location?
             @use()
-            @gl.uniform1f location, value
+            if value instanceof Array or value instanceof Float32Array
+                @gl.uniform1fv location, value
+            else
+                @gl.uniform1f location, value
         return @
 
 exports.ShaderProxy = class ShaderProxy extends ShaderObj
@@ -275,6 +300,10 @@ exports.ShaderProxy = class ShaderProxy extends ShaderObj
 
     vec3: (name, a, b, c) ->
         @shader.vec3 name, a, b, c
+        return @
+    
+    vec4: (name, a, b, c, d) ->
+        @shader.vec4 name, a, b, c, d
         return @
 
     int: (name, value) ->

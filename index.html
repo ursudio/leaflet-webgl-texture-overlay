@@ -5,6 +5,8 @@
         <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
         <script src="WebGLTextureOverlay.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.3.3/proj4.js"></script>
+
         <style>
             html,body{
                 height: 100%;
@@ -25,7 +27,7 @@
         </style>
         <script>
             $(function(){
-                var map = L.map('map').setView([51.505, -0.09], 13);
+                var map = L.map('map').setView([59.984134,-119.960313], 10);
 
                 L.tileLayer('http://otile{s}.mqcdn.com/tiles/1.0.0/map/{z}/{x}/{y}.jpg', { 
                     subdomains: '1234'
@@ -34,19 +36,99 @@
                 var overlay = L.webglTextureOverlay()
                     .addTo(map);
 
-                overlay.addImageLayer({
-                    url: 'wgs-test.jpg',
-                    gcs: 'wgs', // wgs 84, EPSG:4326
-                    topleft: {
-                        x: -180,
-                        y: 90
-                    },
-                    bottomright: {
-                        x: 180,
-                        y: -90
-                    }
-                });
+                var intensityLayer = overlay.addLayer();
+                
+                var setInterpolation = function(){
+                    intensityLayer.setInterpolation(interpolationSelect.val());
+                };
 
+                var interpolationSelect = $('<select></select>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:50, right:10})
+                    .change(setInterpolation);
+
+                for(var i=0; i<overlay.interpolations.length; i++){
+                    var interpolation = overlay.interpolations[i];
+                    $('<option></option>')
+                        .text(interpolation)
+                        .appendTo(interpolationSelect);
+                }
+                setInterpolation();
+
+                /* alternate form:
+                    overlay.addLayer({
+                        interpolation: ...
+                        colormap: ...
+                        data: {
+                            width: ...
+                            height: ...
+                            bitmap: ...
+                            projection: ...
+                            bounds: {
+                                left: ...
+                                right: ...
+                                top: ...
+                                bottom: ...
+                            }
+                        }
+                    });
+                */
+
+                $.getJSON('data/colors.json', function(colors){
+                    var setColor = function(){
+                        intensityLayer.setColormap(colors[colorSelect.val()]);
+                    };
+                    var colorSelect = $('<select></select>')
+                        .appendTo('body')
+                        .css({position:'absolute', top:10, right:10})
+                        .change(setColor);
+
+                    for(name in colors){
+                        var option = $('<option></option>')
+                            .text(name)
+                            .appendTo(colorSelect);
+                    }
+                    setColor(); 
+
+                    var setData = function(){
+                        var dataName = dataSelect.val();
+                        var dataPath = 'data/' + dataName + '.json';
+
+                        $.getJSON(dataPath, function(json){
+                            intensityLayer.setData({
+                                width: json.width,
+                                height: json.height,
+                                bitmap: new Float32Array(json.bitmap),
+                                projection: json.projection,
+                                bounds: {
+                                    left: json.nw[0],
+                                    right: json.se[0],
+                                    top: json.nw[1],
+                                    bottom: json.se[1],
+                                }
+                            });
+                        });
+                    };
+
+                    var dataSelect = $('<select></select>')
+                        .appendTo('body')
+                        .css({position:'absolute', top:30, right:10})
+                        .change(setData);
+
+                    $('<option></option>')
+                        .text('footprint-area-delta')
+                        .appendTo(dataSelect)
+                        
+                    $('<option></option>')
+                        .text('human-population')
+                        .appendTo(dataSelect)
+                    
+                    $('<option></option>')
+                        .text('timber-production')
+                        .appendTo(dataSelect)
+
+                    setData();
+                });
             });
         </script>
     </head>

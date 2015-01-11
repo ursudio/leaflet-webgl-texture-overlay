@@ -207,6 +207,10 @@ exports = class State
     vec3: (name, a, b, c) ->
         @shader.vec3 name, a, b, c
         return @
+    
+    vec4: (name, a, b, c, d) ->
+        @shader.vec4 name, a, b, c, d
+        return @
 
     uniformSetter: (obj) ->
         @shader.uniformSetter obj

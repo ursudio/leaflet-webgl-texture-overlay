@@ -1,49 +1,63 @@
-varying vec2 texcoord;
+varying vec2 vTexcoord;
 
 vertex:
-    attribute vec2 position;
+    attribute vec2 position, texcoord;
     uniform float verticalSize, verticalOffset;
+    
+    struct SlippyBounds{
+        vec2 southWest, northEast;
+    };
+    uniform SlippyBounds slippyBounds;
 
     void main(){
-        texcoord = position*0.5+0.5;
+        vTexcoord = texcoord;
+        vec2 pos = position;
 
-        vec2 pos = vec2(
-            position.x,
-            position.y*verticalSize + verticalOffset
+        pos = linstepOpen(slippyBounds.southWest, slippyBounds.northEast, pos)*2.0-1.0;
+
+        pos = vec2(
+            pos.x,
+            pos.y*verticalSize + verticalOffset
         );
 
         gl_Position = vec4(pos, 0, 1);
     }
 
 fragment:
-    struct SlippyBounds{
-        vec2 southWest, northEast;
-    };
-    uniform SlippyBounds slippyBounds;
-            
-    vec2 slippyUVToSphereUV(vec2 texcoord){
-        vec2 normalizedCoord = texcoord*2.0-1.0;
-        float t = 1.0 - atan(exp(-PI*normalizedCoord.y))/PIH;
-
-        return vec2(mod(texcoord.s, 1.0), t);
-    }
-
-    vec2 sphereUVToSlippyUV(vec2 texcoord){
-        vec2 normalizedCoord = texcoord*2.0-1.0;
-        float lat = PIH*normalizedCoord.y;
-        float t = log(
-            (1.0 + sin(lat)) /
-            (1.0 - sin(lat))
-        )/(4.0*PI) + 0.5;
-
-        return vec2(texcoord.s, t);
-    }
-
     uniform sampler2D source;
+    uniform vec2 sourceSize;
+
+    uniform float colormap[18*5];
+    uniform float minIntensity;
+    uniform float maxIntensity;
+                
+    float fade(vec3 range, float value){
+        return clamp(
+            linstep(range.x, range.y, value) - linstep(range.y, range.z, value),
+        0.0, 1.0);
+    }
+    
+    vec4 colorFun(float intensity){
+        vec4 result = vec4(0.0);
+        for(int i=1; i<15; i++){
+            float r = colormap[i*5+0];
+            float g = colormap[i*5+1];
+            float b = colormap[i*5+2];
+            float a = colormap[i*5+3];
+            vec3 color = degammasRGB(vec3(r,g,b));
+
+            float left = colormap[(i-1)*5+4];
+            float center = colormap[i*5+4];
+            float right = colormap[(i+1)*5+4];
+
+            result += fade(vec3(left, center, right), intensity) * vec4(color, a);
+        }
+        return result;
+    }
 
     void main(){
-        vec2 slippyCoord = mix(slippyBounds.southWest, slippyBounds.northEast, texcoord);
-        vec2 sphereCoord = slippyUVToSphereUV(slippyCoord);
-        vec3 color = texture2D(source, sphereCoord).rgb;
-        gl_FragColor = vec4(color*0.4, 0.4);
+        float intensityScalar = texture2DInterp(source, vTexcoord, sourceSize).r;
+        float intensity = mix(minIntensity, maxIntensity, intensityScalar);
+        vec4 color = colorFun(intensity);
+        gl_FragColor = vec4(gammasRGB(color.rgb)*color.a, color.a);
     }

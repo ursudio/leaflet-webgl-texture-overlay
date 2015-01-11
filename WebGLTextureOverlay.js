@@ -232,7 +232,7 @@ sys = {
     }
   }
 };
-sys.defFile("/display.shader", "#file /display.shader\nvarying vec2 texcoord;\n\nvertex:\n    attribute vec2 position;\n    uniform float verticalSize, verticalOffset;\n\n    void main(){\n        texcoord = position*0.5+0.5;\n\n        vec2 pos = vec2(\n            position.x,\n            position.y*verticalSize + verticalOffset\n        );\n\n        gl_Position = vec4(pos, 0, 1);\n    }\n\nfragment:\n    struct SlippyBounds{\n        vec2 southWest, northEast;\n    };\n    uniform SlippyBounds slippyBounds;\n            \n    vec2 slippyUVToSphereUV(vec2 texcoord){\n        vec2 normalizedCoord = texcoord*2.0-1.0;\n        float t = 1.0 - atan(exp(-PI*normalizedCoord.y))/PIH;\n\n        return vec2(mod(texcoord.s, 1.0), t);\n    }\n\n    vec2 sphereUVToSlippyUV(vec2 texcoord){\n        vec2 normalizedCoord = texcoord*2.0-1.0;\n        float lat = PIH*normalizedCoord.y;\n        float t = log(\n            (1.0 + sin(lat)) /\n            (1.0 - sin(lat))\n        )/(4.0*PI) + 0.5;\n\n        return vec2(texcoord.s, t);\n    }\n\n    uniform sampler2D source;\n\n    void main(){\n        vec2 slippyCoord = mix(slippyBounds.southWest, slippyBounds.northEast, texcoord);\n        vec2 sphereCoord = slippyUVToSphereUV(slippyCoord);\n        vec3 color = texture2D(source, sphereCoord).rgb;\n        gl_FragColor = vec4(color*0.4, 0.4);\n    }");
+sys.defFile("/display.shader", "#file /display.shader\nvarying vec2 vTexcoord;\n\nvertex:\n    attribute vec2 position, texcoord;\n    uniform float verticalSize, verticalOffset;\n    \n    struct SlippyBounds{\n        vec2 southWest, northEast;\n    };\n    uniform SlippyBounds slippyBounds;\n\n    void main(){\n        vTexcoord = texcoord;\n        vec2 pos = position;\n\n        pos = linstepOpen(slippyBounds.southWest, slippyBounds.northEast, pos)*2.0-1.0;\n\n        pos = vec2(\n            pos.x,\n            pos.y*verticalSize + verticalOffset\n        );\n\n        gl_Position = vec4(pos, 0, 1);\n    }\n\nfragment:\n    uniform sampler2D source;\n    uniform vec2 sourceSize;\n\n    uniform float colormap[18*5];\n    uniform float minIntensity;\n    uniform float maxIntensity;\n                \n    float fade(vec3 range, float value){\n        return clamp(\n            linstep(range.x, range.y, value) - linstep(range.y, range.z, value),\n        0.0, 1.0);\n    }\n    \n    vec4 colorFun(float intensity){\n        vec4 result = vec4(0.0);\n        for(int i=1; i<15; i++){\n            float r = colormap[i*5+0];\n            float g = colormap[i*5+1];\n            float b = colormap[i*5+2];\n            float a = colormap[i*5+3];\n            vec3 color = degammasRGB(vec3(r,g,b));\n\n            float left = colormap[(i-1)*5+4];\n            float center = colormap[i*5+4];\n            float right = colormap[(i+1)*5+4];\n\n            result += fade(vec3(left, center, right), intensity) * vec4(color, a);\n        }\n        return result;\n    }\n\n    void main(){\n        float intensityScalar = texture2DInterp(source, vTexcoord, sourceSize).r;\n        float intensity = mix(minIntensity, maxIntensity, intensityScalar);\n        vec4 color = colorFun(intensity);\n        gl_FragColor = vec4(gammasRGB(color.rgb)*color.a, color.a);\n    }");
 var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
 sys.defModule('/module', function(exports, require, fs) {
@@ -249,6 +249,7 @@ sys.defModule('/module', function(exports, require, fs) {
       this.dirty = false;
       this.running = false;
       this.layers = [];
+      this.interpolations = ['nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic', 'bicubicLinear', 'polynom6th', 'bicubicSmoothstep', 'bspline', 'bell', 'catmull-rom'];
     }
 
     WebGLTextureOverlay.prototype.onAdd = function(map) {
@@ -328,8 +329,12 @@ sys.defModule('/module', function(exports, require, fs) {
       return requestAnimationFrame(this.draw);
     };
 
-    WebGLTextureOverlay.prototype.addImageLayer = function(params) {
-      return this.layers.push(new TextureLayer(this.gf, params));
+    WebGLTextureOverlay.prototype.addLayer = function(params) {
+      var layer;
+      this.dirty = true;
+      layer = new TextureLayer(this, params);
+      this.layers.push(layer);
+      return layer;
     };
 
     return WebGLTextureOverlay;
@@ -340,23 +345,245 @@ sys.defModule('/module', function(exports, require, fs) {
   };
   return exports;
 });
+sys.defFile("/texfuns/bell.shader", "#file /texfuns/bell.shader\nfragment:\n    float interp(float x){\n        float f = ( x / 2.0 ) * 1.5; // Converting -2 to +2 to -1.5 to +1.5\n        if( f > -1.5 && f < -0.5 ){\n            return( 0.5 * pow(f + 1.5, 2.0));\n        }\n        else if( f > -0.5 && f < 0.5 ){\n            return 3.0 / 4.0 - ( f * f );\n        }\n        else if( ( f > 0.5 && f < 1.5 ) ){\n            return( 0.5 * pow(f - 1.5, 2.0));\n        }\n        return 0.0;\n    }");
+sys.defFile("/texfuns/bicubicLinear.shader", "#file /texfuns/bicubicLinear.shader\nfragment:\n    float interp(float x){\n        return 1.0-linstep(0.0, 1.5, abs(x));\n    } ");
+sys.defFile("/texfuns/bicubicSmoothstep.shader", "#file /texfuns/bicubicSmoothstep.shader\nfragment:\n    float interp(float x){\n        return 1.0-smoothstep(0.0, 1.5, abs(x));\n    } ");
+sys.defFile("/texfuns/bspline.shader", "#file /texfuns/bspline.shader\nfragment:\n    float interp(float x){\n        float f = x;\n        if(f < 0.0){\n            f = -f;\n        }\n        if(f >= 0.0 && f <= 1.0){\n            return ( 2.0 / 3.0 ) + ( 0.5 ) * ( f* f * f ) - (f*f);\n        }\n        else if( f > 1.0 && f <= 2.0 ){\n            return 1.0 / 6.0 * pow( ( 2.0 - f  ), 3.0 );\n        }\n        return 1.0;\n    }");
+sys.defFile("/texfuns/catmull-rom.shader", "#file /texfuns/catmull-rom.shader\nfragment:\n    float interp(float x){\n        const float B = 0.0;\n        const float C = 0.5;\n        float f = x;\n        if( f < 0.0 ){\n            f = -f;\n        }\n        if( f < 1.0 ){\n            return ( ( 12.0 - 9.0 * B - 6.0 * C ) * ( f * f * f ) +\n                ( -18.0 + 12.0 * B + 6.0 *C ) * ( f * f ) +\n                ( 6.0 - 2.0 * B ) ) / 6.0;\n        }\n        else if( f >= 1.0 && f < 2.0 ){\n            return ( ( -B - 6.0 * C ) * ( f * f * f )\n                + ( 6.0 * B + 30.0 * C ) * ( f *f ) +\n                ( - ( 12.0 * B ) - 48.0 * C  ) * f +\n                8.0 * B + 24.0 * C)/ 6.0;\n        }\n        else{\n            return 0.0;\n        }\n    }");
+sys.defFile("/texfuns/classicBicubic.shader", "#file /texfuns/classicBicubic.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        vec2 f = fract(coord*size-0.5);\n        vec2 c = floor(coord*size-0.5);\n\n        vec2 st0 = ((2.0 - f) * f - 1.0) * f;\n        vec2 st1 = (3.0 * f - 5.0) * f * f + 2.0;\n        vec2 st2 = ((4.0 - 3.0 * f) * f + 1.0) * f;\n        vec2 st3 = (f - 1.0) * f * f;\n        vec4 row0 =\n            st0.s * texture2DRect(source, c + vec2(-1.0, -1.0), size) +\n            st1.s * texture2DRect(source, c + vec2(0.0, -1.0), size) +\n            st2.s * texture2DRect(source, c + vec2(1.0, -1.0), size) +\n            st3.s * texture2DRect(source, c + vec2(2.0, -1.0), size);\n        vec4 row1 =\n            st0.s * texture2DRect(source, c + vec2(-1.0, 0.0), size) +\n            st1.s * texture2DRect(source, c + vec2(0.0, 0.0), size) +\n            st2.s * texture2DRect(source, c + vec2(1.0, 0.0), size) +\n            st3.s * texture2DRect(source, c + vec2(2.0, 0.0), size);\n        vec4 row2 =\n            st0.s * texture2DRect(source, c + vec2(-1.0, 1.0), size) +\n            st1.s * texture2DRect(source, c + vec2(0.0, 1.0), size) +\n            st2.s * texture2DRect(source, c + vec2(1.0, 1.0), size) +\n            st3.s * texture2DRect(source, c + vec2(2.0, 1.0), size);\n        vec4 row3 =\n            st0.s * texture2DRect(source, c + vec2(-1.0, 2.0), size) +\n            st1.s * texture2DRect(source, c + vec2(0.0, 2.0), size) +\n            st2.s * texture2DRect(source, c + vec2(1.0, 2.0), size) +\n            st3.s * texture2DRect(source, c + vec2(2.0, 2.0), size);\n\n        return 0.25 * ((st0.t * row0) + (st1.t * row1) + (st2.t * row2) + (st3.t * row3));\n    }");
+sys.defFile("/texfuns/euclidian.shader", "#file /texfuns/euclidian.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        vec2 f = fract(coord*size-0.5);\n        vec2 c = floor(coord*size-0.5);\n\n        vec4 sum = vec4(0.0);\n        float denom = 0.0;\n        for(int x = -1; x <=2; x++){\n            for(int y =-1; y<= 2; y++){\n                vec4 color = texture2DRect(source, c + vec2(x,y), size);\n                float dist = distance(vec2(x,y), f);\n                float factor = 1.0-smoothstep(0.0, 2.0, dist);\n                sum += color * factor;\n                denom += factor;\n            }\n        }\n        return sum/denom;\n    }\n");
+sys.defFile("/texfuns/generalBicubic.shader", "#file /texfuns/generalBicubic.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        vec2 f = fract(coord*size-0.5);\n        vec2 c = floor(coord*size-0.5);\n        vec4 sum = vec4(0.0);\n        float denom = 0.0;\n        for(int x = -1; x <=2; x++){\n            for(int y =-1; y<= 2; y++){\n                vec4 color = texture2DRect(source, c + vec2(x,y), size);\n                float fx  = interp(float(x) - f.x);\n                float fy = interp(float(y) - f.y);\n                sum += color * fx * fy;\n                denom += fx*fy;\n            }\n        }\n        return sum/denom;\n    }");
+sys.defFile("/texfuns/lerp.shader", "#file /texfuns/lerp.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        vec2 f = fract(coord*size-0.5);\n        vec2 c = floor(coord*size-0.5);\n\n        vec4 lb = texture2DRect(source, c+vec2(0.0, 0.0), size);\n        vec4 lt = texture2DRect(source, c+vec2(0.0, 1.0), size);\n        vec4 rb = texture2DRect(source, c+vec2(1.0, 0.0), size);\n        vec4 rt = texture2DRect(source, c+vec2(1.0, 1.0), size);\n\n        vec4 a = mix(lb, lt, f.t);\n        vec4 b = mix(rb, rt, f.t);\n        return mix(a, b, f.s);\n    }");
+sys.defFile("/texfuns/nearest.shader", "#file /texfuns/nearest.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        return texture2DRect(source, floor(coord*size), size);\n    }");
+sys.defFile("/texfuns/polynom6th.shader", "#file /texfuns/polynom6th.shader\nfragment:\n    float interp(float x){\n        float t = 1.0-linstep(0.0, 1.5, abs(x));\n        return t*t*t*(t*(t*6.0-15.0)+10.0);\n    } ");
+sys.defFile("/texfuns/rect.shader", "#file /texfuns/rect.shader\nfragment:\n    vec4 texture2DRect(sampler2D source, vec2 coord, vec2 size){\n        vec2 packedIntensity = texture2D(source, (coord+0.5)/size).rg;\n        float intensityScalar = packedIntensity.r/255.0 + packedIntensity.g;\n        return vec4(intensityScalar);\n    }");
+sys.defFile("/texfuns/smoothstep.shader", "#file /texfuns/smoothstep.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        vec2 f = smoothstep(0.0, 1.0, fract(coord*size-0.5));\n        vec2 c = floor(coord*size-0.5);\n\n        vec4 lb = texture2DRect(source, c+vec2(0.0, 0.0), size);\n        vec4 lt = texture2DRect(source, c+vec2(0.0, 1.0), size);\n        vec4 rb = texture2DRect(source, c+vec2(1.0, 0.0), size);\n        vec4 rt = texture2DRect(source, c+vec2(1.0, 1.0), size);\n\n        vec4 a = mix(lb, lt, f.t);\n        vec4 b = mix(rb, rt, f.t);\n        return mix(a, b, f.s);\n    }");
 sys.defModule('/texture-layer', function(exports, require, fs) {
   var TextureLayer;
   exports = TextureLayer = (function() {
-    function TextureLayer(gf, params) {
-      this.gf = gf;
+    function TextureLayer(parent, params) {
+      var name, _i, _j, _len, _len1, _ref, _ref1;
+      this.parent = parent;
+      if (params == null) {
+        params = {};
+      }
+      this.gf = this.parent.gf;
+      this.map = this.parent.map;
+      this.haveData = false;
+      this.haveColormap = false;
+      this.shaders = {};
+      _ref = ['nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic'];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        name = _ref[_i];
+        this.shaders[name] = [fs.open('texfuns/rect.shader'), fs.open("texfuns/" + name + ".shader"), fs.open('display.shader')];
+      }
+      _ref1 = ['bicubicLinear', 'polynom6th', 'bicubicSmoothstep', 'bspline', 'bell', 'catmull-rom'];
+      for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+        name = _ref1[_j];
+        this.shaders[name] = [fs.open('texfuns/rect.shader'), fs.open("texfuns/" + name + ".shader"), fs.open("texfuns/generalBicubic.shader"), fs.open('display.shader')];
+      }
+      this.shader = this.gf.shader(this.shaders['bell']);
+      this.state = this.gf.state({
+        shader: this.shader,
+        vertexbuffer: {
+          pointers: [
+            {
+              name: 'position',
+              size: 2
+            }, {
+              name: 'texcoord',
+              size: 2
+            }
+          ]
+        }
+      });
       this.texture = this.gf.texture2D({
         width: 1,
-        height: 1
+        height: 1,
+        filter: 'linear',
+        repeat: 'clamp'
       });
-      this.texture.loadImage(params.url);
-      this.state = this.gf.state({
-        shader: fs.open('display.shader')
-      });
+      if (params.colormap != null) {
+        this.setColormap(params.colormap);
+      }
+      if (params.data != null) {
+        this.setData(params.data);
+      }
+      if (params.interpolation != null) {
+        this.setInterpolation(params.interpolation);
+      }
     }
 
+    TextureLayer.prototype.project = function(s, t) {
+      var b, lat, lng, x, y, _ref, _ref1;
+      b = this.bounds;
+      x = b.left + (b.right - b.left) * s;
+      y = b.top + (b.bottom - b.top) * t;
+      _ref = this.projection.forward([x, y]), lng = _ref[0], lat = _ref[1];
+      lng += 360;
+      _ref1 = this.map.project({
+        lat: lat,
+        lng: lng
+      }, 0).divideBy(256), x = _ref1.x, y = _ref1.y;
+      return {
+        x: x - 1,
+        y: y
+      };
+    };
+
+    TextureLayer.prototype.testMarkers = function() {
+      var b, i, j, lat, lng, s, t, x, y, _i, _results;
+      s = 0;
+      t = 0;
+      b = this.bounds;
+      _results = [];
+      for (i = _i = 0; _i < 50; i = ++_i) {
+        _results.push((function() {
+          var _j, _ref, _results1;
+          _results1 = [];
+          for (j = _j = 0; _j < 50; j = ++_j) {
+            s = i / (this.texture.width - 1);
+            t = j / (this.texture.height - 1);
+            x = b.left + (b.right - b.left) * s;
+            y = b.top + (b.bottom - b.top) * t;
+            _ref = this.projection.forward([x, y]), lng = _ref[0], lat = _ref[1];
+            _results1.push(L.circleMarker({
+              lat: lat,
+              lng: lng
+            }, {
+              radius: 1
+            }).addTo(this.map));
+          }
+          return _results1;
+        }).call(this));
+      }
+      return _results;
+    };
+
+    TextureLayer.prototype.tessellate = function(data) {
+      var centroids, d, o, p0, p1, p2, p3, s, sOffset, sScale, size, t, tOffset, tScale, v, x, x0, x1, y, y0, y1, _i, _j, _k, _l, _ref;
+      size = 50;
+      sScale = (data.width + 1) / data.width;
+      sOffset = 0.5 / data.width;
+      tScale = (data.height + 1) / data.height;
+      tOffset = 0.5 / data.height;
+      centroids = [];
+      for (t = _i = 0; 0 <= size ? _i <= size : _i >= size; t = 0 <= size ? ++_i : --_i) {
+        t = t / size;
+        for (s = _j = 0; 0 <= size ? _j <= size : _j >= size; s = 0 <= size ? ++_j : --_j) {
+          s = s / size;
+          _ref = this.project(s * sScale - sOffset, t * tScale - tOffset), x = _ref.x, y = _ref.y;
+          centroids.push({
+            x: x,
+            y: y,
+            s: s,
+            t: t
+          });
+        }
+      }
+      v = new Float32Array(Math.pow(size, 2) * 3 * 4 * 2);
+      o = 0;
+      d = size + 1;
+      for (y = _k = 0; 0 <= size ? _k < size : _k > size; y = 0 <= size ? ++_k : --_k) {
+        y0 = y * d;
+        y1 = (y + 1) * d;
+        for (x = _l = 0; 0 <= size ? _l < size : _l > size; x = 0 <= size ? ++_l : --_l) {
+          x0 = x;
+          x1 = x + 1;
+          p0 = centroids[x0 + y0];
+          p1 = centroids[x1 + y0];
+          p2 = centroids[x0 + y1];
+          p3 = centroids[x1 + y1];
+          v[o++] = p0.x;
+          v[o++] = p0.y;
+          v[o++] = p0.s;
+          v[o++] = p0.t;
+          v[o++] = p1.x;
+          v[o++] = p1.y;
+          v[o++] = p1.s;
+          v[o++] = p1.t;
+          v[o++] = p2.x;
+          v[o++] = p2.y;
+          v[o++] = p2.s;
+          v[o++] = p2.t;
+          v[o++] = p1.x;
+          v[o++] = p1.y;
+          v[o++] = p1.s;
+          v[o++] = p1.t;
+          v[o++] = p2.x;
+          v[o++] = p2.y;
+          v[o++] = p2.s;
+          v[o++] = p2.t;
+          v[o++] = p3.x;
+          v[o++] = p3.y;
+          v[o++] = p3.s;
+          v[o++] = p3.t;
+        }
+      }
+      return this.state.vertices(v);
+    };
+
+    TextureLayer.prototype.updateBitmap = function(data) {
+      var bitmap, i, intensity, item, max, min, range, shortView, _i, _j, _len, _len1, _ref, _ref1;
+      min = max = data.bitmap[0];
+      _ref = data.bitmap;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        item = _ref[_i];
+        min = Math.min(item, min);
+        max = Math.max(item, max);
+      }
+      this.minIntensity = min;
+      this.maxIntensity = max;
+      range = max - min;
+      bitmap = new Uint8Array(data.width * data.height * 4);
+      shortView = new Uint16Array(bitmap.buffer);
+      _ref1 = data.bitmap;
+      for (i = _j = 0, _len1 = _ref1.length; _j < _len1; i = ++_j) {
+        intensity = _ref1[i];
+        intensity = (intensity - min) / range;
+        intensity = intensity * 65535;
+        shortView[i * 2] = intensity;
+      }
+      return this.texture.dataSized(bitmap, data.width, data.height);
+    };
+
     TextureLayer.prototype.draw = function(southWest, northEast, verticalSize, verticalOffset) {
-      return this.state.sampler('source', this.texture).float('verticalSize', verticalSize).float('verticalOffset', verticalOffset).vec2('slippyBounds.southWest', southWest.x, southWest.y).vec2('slippyBounds.northEast', northEast.x, northEast.y).draw();
+      if (this.haveData && this.haveColormap) {
+        return this.state.float('colormap', this.colormap).vec2('sourceSize', this.texture.width, this.texture.height).sampler('source', this.texture).float('minIntensity', this.minIntensity).float('maxIntensity', this.maxIntensity).float('verticalSize', verticalSize).float('verticalOffset', verticalOffset).vec2('slippyBounds.southWest', southWest.x, southWest.y).vec2('slippyBounds.northEast', northEast.x, northEast.y).draw();
+      }
+    };
+
+    TextureLayer.prototype.setData = function(data) {
+      this.parent.dirty = true;
+      this.projection = proj4(new proj4.Proj(data.projection), new proj4.Proj('WGS84'));
+      this.bounds = data.bounds;
+      this.tessellate(data);
+      this.updateBitmap(data);
+      return this.haveData = true;
+    };
+
+    TextureLayer.prototype.setColormap = function(data) {
+      var color, i, _i, _len, _ref;
+      this.parent.dirty = true;
+      data = data.slice(0);
+      data.unshift(data[0]);
+      data.push(data[data.length - 1]);
+      data[0].alpha = 0;
+      this.colormap = new Float32Array(18 * 5);
+      for (i = _i = 0, _len = data.length; _i < _len; i = ++_i) {
+        color = data[i];
+        this.colormap[i * 5 + 0] = color.r / 255;
+        this.colormap[i * 5 + 1] = color.g / 255;
+        this.colormap[i * 5 + 2] = color.b / 255;
+        this.colormap[i * 5 + 3] = (_ref = color.alpha) != null ? _ref : 1;
+        this.colormap[i * 5 + 4] = color.center;
+      }
+      return this.haveColormap = true;
+    };
+
+    TextureLayer.prototype.setInterpolation = function(name) {
+      this.parent.dirty = true;
+      return this.shader.source(this.shaders[name]);
     };
 
     return TextureLayer;
@@ -1186,14 +1413,23 @@ sys.defModule('/webgl-framework/shader', function(exports, require, fs) {
     return ShaderObj;
 
   })();
-  boilerplate = '    precision highp int;\n    precision highp float;\n    #define PI 3.141592653589793\n    #define TAU 6.283185307179586\n    #define PIH 1.5707963267948966\n    #define E 2.7182818284590451\n    float angleBetween(vec3 a, vec3 b){return acos(dot(a,b));}\n\n    vec3 gamma(vec3 color){\n        return pow(color, vec3(1.0/2.4)); \n    }\n\n    vec3 degamma(vec3 color){\n        return pow(color, vec3(2.4));\n    }\n\n    vec3 gammasRGB(vec3 color){\n        return mix(\n            color*12.92,\n            pow(color, vec3(1.0/2.4))*1.055-0.055,\n            step((0.04045/12.92), color)\n        );\n    }\n\n    vec3 degammasRGB(vec3 color){\n        return mix(\n            color/12.92,\n            pow((color+0.055)/1.055, vec3(2.4)),\n            step(0.04045, color)\n        );\n    }\n    \n    float linstep(float edge0, float edge1, float value){\n        return clamp((value-edge0)/(edge1-edge0), 0.0, 1.0);\n    }\n\n    vec2 linstep(vec2 edge0, vec2 edge1, vec2 value){\n        return clamp((value-edge0)/(edge1-edge0), vec2(0.0), vec2(1.0));\n    }';
+  boilerplate = '    precision highp int;\n    precision highp float;\n    #define PI 3.141592653589793\n    #define TAU 6.283185307179586\n    #define PIH 1.5707963267948966\n    #define E 2.7182818284590451\n    float angleBetween(vec3 a, vec3 b){return acos(dot(a,b));}\n\n    vec3 gamma(vec3 color){\n        return pow(color, vec3(1.0/2.4)); \n    }\n\n    vec3 degamma(vec3 color){\n        return pow(color, vec3(2.4));\n    }\n\n    vec3 gammasRGB(vec3 color){\n        return mix(\n            color*12.92,\n            pow(color, vec3(1.0/2.4))*1.055-0.055,\n            step((0.04045/12.92), color)\n        );\n    }\n\n    vec3 degammasRGB(vec3 color){\n        return mix(\n            color/12.92,\n            pow((color+0.055)/1.055, vec3(2.4)),\n            step(0.04045, color)\n        );\n    }\n    \n    float linstep(float edge0, float edge1, float value){\n        return clamp((value-edge0)/(edge1-edge0), 0.0, 1.0);\n    }\n    \n    float linstepOpen(float edge0, float edge1, float value){\n        return (value-edge0)/(edge1-edge0);\n    }\n\n    vec2 linstep(vec2 edge0, vec2 edge1, vec2 value){\n        return clamp((value-edge0)/(edge1-edge0), vec2(0.0), vec2(1.0));\n    }\n    \n    vec2 linstepOpen(vec2 edge0, vec2 edge1, vec2 value){\n        return (value-edge0)/(edge1-edge0);\n    }';
   exports.Shader = Shader = (function(_super) {
     __extends(Shader, _super);
 
     function Shader(gf, params) {
-      var c, common, f, fragment, source, v, vertex, _i, _len, _ref, _ref1, _ref2;
       this.gf = gf;
       this.gl = this.gf.gl;
+      this.program = this.gl.createProgram();
+      this.vs = this.gl.createShader(this.gl.VERTEX_SHADER);
+      this.fs = this.gl.createShader(this.gl.FRAGMENT_SHADER);
+      this.gl.attachShader(this.program, this.vs);
+      this.gl.attachShader(this.program, this.fs);
+      this.source(params);
+    }
+
+    Shader.prototype.source = function(params) {
+      var c, common, f, file, fragment, v, vertex, _i, _len, _ref, _ref1, _ref2;
       if (typeof params === 'string') {
         _ref = this.splitSource(params), common = _ref[0], vertex = _ref[1], fragment = _ref[2];
       } else if (params instanceof sys.File) {
@@ -1203,8 +1439,8 @@ sys.defModule('/webgl-framework/shader', function(exports, require, fs) {
         vertex = [];
         fragment = [];
         for (_i = 0, _len = params.length; _i < _len; _i++) {
-          source = params[_i];
-          _ref2 = this.splitSource(source), c = _ref2[0], v = _ref2[1], f = _ref2[2];
+          file = params[_i];
+          _ref2 = this.splitSource(file.read()), c = _ref2[0], v = _ref2[1], f = _ref2[2];
           if (c.length > 0) {
             common.push(c);
           }
@@ -1219,17 +1455,12 @@ sys.defModule('/webgl-framework/shader', function(exports, require, fs) {
         vertex = vertex.join('\n');
         fragment = fragment.join('\n');
       }
-      this.program = this.gl.createProgram();
-      this.vs = this.gl.createShader(this.gl.VERTEX_SHADER);
-      this.fs = this.gl.createShader(this.gl.FRAGMENT_SHADER);
-      this.gl.attachShader(this.program, this.vs);
-      this.gl.attachShader(this.program, this.fs);
-      this.setSource({
+      return this.setSource({
         common: common,
         vertex: vertex,
         fragment: fragment
       });
-    }
+    };
 
     Shader.prototype.destroy = function() {
       this.gl.deleteShader(this.vs);
@@ -1409,7 +1640,7 @@ sys.defModule('/webgl-framework/shader', function(exports, require, fs) {
       location = this.uniformLocation(name);
       if (location != null) {
         this.use();
-        if (a instanceof Array) {
+        if (a instanceof Array || a instanceof Float32Array) {
           this.gl.uniform2fv(location, a);
         } else {
           this.gl.uniform2f(location, a, b);
@@ -1423,10 +1654,24 @@ sys.defModule('/webgl-framework/shader', function(exports, require, fs) {
       location = this.uniformLocation(name);
       if (location != null) {
         this.use();
-        if (a instanceof Array) {
+        if (a instanceof Array || a instanceof Float32Array) {
           this.gl.uniform3fv(location, a);
         } else {
           this.gl.uniform3f(location, a, b, c);
+        }
+      }
+      return this;
+    };
+
+    Shader.prototype.vec4 = function(name, a, b, c, d) {
+      var location;
+      location = this.uniformLocation(name);
+      if (location != null) {
+        this.use();
+        if (a instanceof Array || a instanceof Float32Array) {
+          this.gl.uniform4fv(location, a);
+        } else {
+          this.gl.uniform4f(location, a, b, c, d);
         }
       }
       return this;
@@ -1452,7 +1697,11 @@ sys.defModule('/webgl-framework/shader', function(exports, require, fs) {
       location = this.uniformLocation(name);
       if (location != null) {
         this.use();
-        this.gl.uniform1f(location, value);
+        if (value instanceof Array || value instanceof Float32Array) {
+          this.gl.uniform1fv(location, value);
+        } else {
+          this.gl.uniform1f(location, value);
+        }
       }
       return this;
     };
@@ -1492,6 +1741,11 @@ sys.defModule('/webgl-framework/shader', function(exports, require, fs) {
 
     ShaderProxy.prototype.vec3 = function(name, a, b, c) {
       this.shader.vec3(name, a, b, c);
+      return this;
+    };
+
+    ShaderProxy.prototype.vec4 = function(name, a, b, c, d) {
+      this.shader.vec4(name, a, b, c, d);
       return this;
     };
 
@@ -1869,6 +2123,11 @@ sys.defModule('/webgl-framework/state', function(exports, require, fs) {
 
     State.prototype.vec3 = function(name, a, b, c) {
       this.shader.vec3(name, a, b, c);
+      return this;
+    };
+
+    State.prototype.vec4 = function(name, a, b, c, d) {
+      this.shader.vec4(name, a, b, c, d);
       return this;
     };
 

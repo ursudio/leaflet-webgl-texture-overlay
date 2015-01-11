@@ -4,7 +4,6 @@ TextureLayer = require 'texture-layer'
 class WebGLTextureOverlay
     constructor: ->
         @canvas = L.DomUtil.create 'canvas', 'leaflet-webgl-texture-overlay'
-        #@ctx = @canvas.getContext('2d')
         @gf = new WebGLFramework
             canvas: @canvas
 
@@ -12,6 +11,11 @@ class WebGLTextureOverlay
         @running = false
 
         @layers = []
+
+        @interpolations = [
+            'nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic',
+            'bicubicLinear', 'polynom6th', 'bicubicSmoothstep', 'bspline', 'bell', 'catmull-rom'
+        ]
 
     onAdd: (@map) ->
         @dirty = true
@@ -76,7 +80,7 @@ class WebGLTextureOverlay
 
             southWest = @map.project(sw, 0).divideBy(256)
             northEast = @map.project(ne, 0).divideBy(256)
-        
+
             verticalSize = screenSouth - screenNorth
             verticalOffset = 1.0 - (screenSouth + screenNorth)
 
@@ -85,8 +89,11 @@ class WebGLTextureOverlay
 
         requestAnimationFrame @draw
 
-    addImageLayer: (params) ->
-        @layers.push new TextureLayer(@gf, params)
+    addLayer: (params) ->
+        @dirty = true
+        layer = new TextureLayer(@, params)
+        @layers.push layer
+        return layer
 
 L.webglTextureOverlay = ->
     new WebGLTextureOverlay()
