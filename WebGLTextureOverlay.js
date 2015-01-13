@@ -524,7 +524,9 @@ sys.defModule('/texture-layer', function(exports, require, fs) {
     };
 
     TextureLayer.prototype.updateBitmap = function(data) {
-      var bitmap, i, intensity, item, max, min, range, shortView, _i, _j, _len, _len1, _ref, _ref1;
+      var bitmap, i, intensity, item, max, min, range, shortView, start, _i, _j, _len, _len1, _ref, _ref1;
+      console.log(data.width, data.height);
+      start = performance.now();
       min = max = data.bitmap[0];
       _ref = data.bitmap;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -544,7 +546,8 @@ sys.defModule('/texture-layer', function(exports, require, fs) {
         intensity = intensity * 65535;
         shortView[i * 2] = intensity;
       }
-      return this.texture.dataSized(bitmap, data.width, data.height);
+      this.texture.dataSized(bitmap, data.width, data.height);
+      return console.log(performance.now() - start);
     };
 
     TextureLayer.prototype.draw = function(southWest, northEast, verticalSize, verticalOffset) {

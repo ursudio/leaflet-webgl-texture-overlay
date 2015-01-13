@@ -114,6 +114,8 @@ exports = class TextureLayer
         @state.vertices(v)
 
     updateBitmap: (data) ->
+        console.log data.width, data.height
+        start = performance.now()
         min = max = data.bitmap[0]
         for item in data.bitmap
             min = Math.min(item, min)
@@ -132,6 +134,7 @@ exports = class TextureLayer
             shortView[i*2] = intensity
 
         @texture.dataSized bitmap, data.width, data.height
+        console.log performance.now() - start
 
     draw: (southWest, northEast, verticalSize, verticalOffset) ->
         if @haveData and @haveColormap
