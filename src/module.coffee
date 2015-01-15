@@ -13,7 +13,7 @@ class WebGLTextureOverlay
         @layers = []
 
         @interpolations = [
-            'nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic',
+            'nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic', 'hex-nearest', 'hex-linear', 'hex-smoothstep',
             'bicubicLinear', 'polynom6th', 'bicubicSmoothstep', 'bspline', 'bell', 'catmull-rom'
         ]
 

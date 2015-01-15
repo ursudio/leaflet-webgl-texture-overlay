@@ -7,8 +7,9 @@ exports = class TextureLayer
 
         @shaders = {}
 
-        for name in ['nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic']
+        for name in ['nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic', 'hex-nearest', 'hex-linear', 'hex-smoothstep']
             @shaders[name] = [
+                fs.open('texfuns/intensity.shader')
                 fs.open('texfuns/rect.shader')
                 fs.open("texfuns/#{name}.shader")
                 fs.open('display.shader')
@@ -16,6 +17,7 @@ exports = class TextureLayer
 
         for name in ['bicubicLinear', 'polynom6th', 'bicubicSmoothstep', 'bspline', 'bell', 'catmull-rom']
             @shaders[name] = [
+                fs.open('texfuns/intensity.shader')
                 fs.open('texfuns/rect.shader')
                 fs.open("texfuns/#{name}.shader")
                 fs.open("texfuns/generalBicubic.shader")
@@ -36,7 +38,7 @@ exports = class TextureLayer
         @texture = @gf.texture2D
             width: 1
             height: 1
-            filter: 'linear'
+            filter: 'nearest'
             repeat: 'clamp'
 
         if params.colormap?
@@ -62,14 +64,30 @@ exports = class TextureLayer
         s = 0
         t = 0
         b = @bounds
-        for i in [0...50]
-            for j in [0...50]
+        for i in [0...@texture.width]
+            for j in [0...@texture.height]
                 s = i/(@texture.width-1)
                 t = j/(@texture.height-1)
                 x = b.left + (b.right - b.left)*s
                 y = b.top + (b.bottom - b.top)*t
                 [lng,lat] = @projection.forward([x,y])
                 L.circleMarker({lat:lat, lng:lng}, {radius:1}).addTo(@map)
+        '''
+        s = 0
+        t = 0
+        b = @bounds
+        for i in [0...@texture.width]
+            for j in [0...@texture.height]
+                if j % 2 == 0
+                    s = i/(@texture.width-0.5)
+                else
+                    s = (i+0.5)/(@texture.width-0.5)
+                t = j/(@texture.height-1)
+                x = b.left + (b.right - b.left)*s
+                y = b.top + (b.bottom - b.top)*t
+                [lng,lat] = @projection.forward([x,y])
+                L.circleMarker({lat:lat, lng:lng}, {radius:1}).addTo(@map)
+        '''
        
     tessellate: (data) ->
         size = 50

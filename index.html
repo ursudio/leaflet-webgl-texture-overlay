@@ -38,7 +38,8 @@
             }
 
             $(function(){
-                var map = L.map('map').setView([59.984134,-119.960313], 10);
+                var map = L.map('map').setView([59.984134,-119.960313], 6);
+                //var map = L.map('map').setView([52,-85], 6);
 
                 L.tileLayer('http://otile{s}.mqcdn.com/tiles/1.0.0/map/{z}/{x}/{y}.jpg', { 
                     subdomains: '1234'
@@ -125,11 +126,15 @@
                             });
                         });
                     };
-
+                    
                     var dataSelect = $('<select></select>')
                         .appendTo('body')
                         .css({position:'absolute', top:30, right:10})
                         .change(setData);
+                        
+                    //$('<option></option>')
+                    //    .text('hex_north_ontario')
+                    //    .appendTo(dataSelect)
 
                     $('<option></option>')
                         .text('footprint-area-delta')
@@ -142,7 +147,7 @@
                     $('<option></option>')
                         .text('timber-production')
                         .appendTo(dataSelect)
-
+                        
                     setData();
                 });
             });

@@ -232,7 +232,7 @@ sys = {
     }
   }
 };
-sys.defFile("/display.shader", "#file /display.shader\nvarying vec2 vTexcoord;\n\nvertex:\n    attribute vec2 position, texcoord;\n    uniform float verticalSize, verticalOffset;\n    \n    struct SlippyBounds{\n        vec2 southWest, northEast;\n    };\n    uniform SlippyBounds slippyBounds;\n\n    void main(){\n        vTexcoord = texcoord;\n        vec2 pos = position;\n\n        pos = linstepOpen(slippyBounds.southWest, slippyBounds.northEast, pos)*2.0-1.0;\n\n        pos = vec2(\n            pos.x,\n            pos.y*verticalSize + verticalOffset\n        );\n\n        gl_Position = vec4(pos, 0, 1);\n    }\n\nfragment:\n    uniform sampler2D source;\n    uniform vec2 sourceSize;\n\n    uniform float colormap[18*5];\n    uniform float minIntensity;\n    uniform float maxIntensity;\n                \n    float fade(vec3 range, float value){\n        return clamp(\n            linstep(range.x, range.y, value) - linstep(range.y, range.z, value),\n        0.0, 1.0);\n    }\n    \n    vec4 colorFun(float intensity){\n        vec4 result = vec4(0.0);\n        for(int i=1; i<15; i++){\n            float r = colormap[i*5+0];\n            float g = colormap[i*5+1];\n            float b = colormap[i*5+2];\n            float a = colormap[i*5+3];\n            vec3 color = degammasRGB(vec3(r,g,b));\n\n            float left = colormap[(i-1)*5+4];\n            float center = colormap[i*5+4];\n            float right = colormap[(i+1)*5+4];\n\n            result += fade(vec3(left, center, right), intensity) * vec4(color, a);\n        }\n        return result;\n    }\n\n    void main(){\n        float intensityScalar = texture2DInterp(source, vTexcoord, sourceSize).r;\n        float intensity = mix(minIntensity, maxIntensity, intensityScalar);\n        vec4 color = colorFun(intensity);\n        gl_FragColor = vec4(gammasRGB(color.rgb)*color.a, color.a);\n    }");
+sys.defFile("/display.shader", "#file /display.shader\nvarying vec2 vTexcoord;\n\nvertex:\n    attribute vec2 position, texcoord;\n    uniform float verticalSize, verticalOffset;\n    \n    struct SlippyBounds{\n        vec2 southWest, northEast;\n    };\n    uniform SlippyBounds slippyBounds;\n\n    void main(){\n        vTexcoord = texcoord;\n        vec2 pos = position;\n\n        pos = linstepOpen(slippyBounds.southWest, slippyBounds.northEast, pos)*2.0-1.0;\n\n        pos = vec2(\n            pos.x,\n            pos.y*verticalSize + verticalOffset\n        );\n\n        gl_Position = vec4(pos, 0, 1);\n    }\n\nfragment:\n    uniform sampler2D source;\n    uniform vec2 sourceSize;\n\n    uniform float colormap[18*5];\n    uniform float minIntensity;\n    uniform float maxIntensity;\n                \n    float fade(vec3 range, float value){\n        return clamp(\n            linstep(range.x, range.y, value) - linstep(range.y, range.z, value),\n        0.0, 1.0);\n    }\n    \n    vec4 colorFun(float intensity){\n        vec4 result = vec4(0.0);\n        for(int i=1; i<15; i++){\n            float r = colormap[i*5+0];\n            float g = colormap[i*5+1];\n            float b = colormap[i*5+2];\n            float a = colormap[i*5+3];\n            vec3 color = degammasRGB(vec3(r,g,b));\n\n            float left = colormap[(i-1)*5+4];\n            float center = colormap[i*5+4];\n            float right = colormap[(i+1)*5+4];\n\n            result += fade(vec3(left, center, right), intensity) * vec4(color, a);\n        }\n        return result;\n    }\n   \n    /*\n    vec4 texture2DRect(sampler2D source, vec2 coord, vec2 size){\n        vec2 packedIntensity = texture2D(source, (coord+0.5)/size).rg;\n        float intensityScalar = packedIntensity.r/255.0 + packedIntensity.g;\n        return vec4(intensityScalar);\n    }\n    \n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        return texture2DRect(source, floor(coord*size), size);\n    }\n    */\n\n    vec4 textureHex(sampler2D source, vec2 coord, vec2 size){\n        coord.x *= (size.x+0.5)/size.x;\n        float xoff = abs(1.0-mod(coord.y*size.y+0.5, 2.0));\n        coord.x -= (xoff*0.5)/size.x;\n        \n        vec2 f = fract(coord*size+0.5);\n        //f.x = 1.0-f.x;\n        float even = step(1.0, mod(coord.y*size.y+0.5, 2.0));\n        f.x = mix(1.0-f.x, f.x, even);\n        float side = step(1.0, f.x+f.y);\n\n        vec3 bc = vec3(\n            mix(\n                f.xy,\n                1.0-f.yx,\n                side\n            ),\n            fract(abs(f.x+f.y-1.0))\n        );\n\n        vec2 c = floor(coord*size-0.5);\n\n        vec2 right = mix(\n            c,\n            c+vec2(1, 0),\n            even\n        )/size;\n\n        vec2 bottom = mix(\n            c+vec2(1),\n            c+vec2(0, 1),\n            even\n        )/size;\n\n        vec2 diag = mix(\n            c+mix(vec2(1,0), vec2(0,1), side),\n            c+vec2(side),\n            even\n        )/size;\n\n        float tRight = texture2D(source, right).g;\n        float tBottom = texture2D(source, bottom).g;\n        float tDiag = texture2D(source, diag).g;\n\n        //return vec4(vec3(even)*bc, 0);\n        //return vec4(bc, 0);\n        //return tRight*bc.x + tBottom*bc.y + tDiag*bc.z;\n\n        //bc = smoothstep(0.0, 1.0, bc);\n        //bc /= bc.x+bc.y+bc.z;\n\n        float result = mix(tRight, tBottom, step(bc.x, bc.y));\n        result = mix(tDiag, result, step(bc.z, max(bc.x, bc.y)));\n        return vec4(result);\n\n        return vec4(tRight*bc.x + tBottom*bc.y + tDiag*bc.z);\n        //return texture2D(source, coord);\n        //return vec4(xoff);\n    }\n\n    void main(){\n        float intensityScalar = texture2DInterp(source, vTexcoord, sourceSize).r;\n        float intensity = mix(minIntensity, maxIntensity, intensityScalar);\n        vec4 color = colorFun(intensity);\n        gl_FragColor = vec4(gammasRGB(color.rgb)*color.a, color.a);\n        //gl_FragColor = vec4(vec3(intensityScalar), 1);\n        //gl_FragColor = vec4(gammasRGB(intensityScalar.rgb), 1);\n    }");
 var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
 sys.defModule('/module', function(exports, require, fs) {
@@ -249,7 +249,7 @@ sys.defModule('/module', function(exports, require, fs) {
       this.dirty = false;
       this.running = false;
       this.layers = [];
-      this.interpolations = ['nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic', 'bicubicLinear', 'polynom6th', 'bicubicSmoothstep', 'bspline', 'bell', 'catmull-rom'];
+      this.interpolations = ['nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic', 'hex-nearest', 'hex-linear', 'hex-smoothstep', 'bicubicLinear', 'polynom6th', 'bicubicSmoothstep', 'bspline', 'bell', 'catmull-rom'];
     }
 
     WebGLTextureOverlay.prototype.onAdd = function(map) {
@@ -353,10 +353,14 @@ sys.defFile("/texfuns/catmull-rom.shader", "#file /texfuns/catmull-rom.shader\nf
 sys.defFile("/texfuns/classicBicubic.shader", "#file /texfuns/classicBicubic.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        vec2 f = fract(coord*size-0.5);\n        vec2 c = floor(coord*size-0.5);\n\n        vec2 st0 = ((2.0 - f) * f - 1.0) * f;\n        vec2 st1 = (3.0 * f - 5.0) * f * f + 2.0;\n        vec2 st2 = ((4.0 - 3.0 * f) * f + 1.0) * f;\n        vec2 st3 = (f - 1.0) * f * f;\n        vec4 row0 =\n            st0.s * texture2DRect(source, c + vec2(-1.0, -1.0), size) +\n            st1.s * texture2DRect(source, c + vec2(0.0, -1.0), size) +\n            st2.s * texture2DRect(source, c + vec2(1.0, -1.0), size) +\n            st3.s * texture2DRect(source, c + vec2(2.0, -1.0), size);\n        vec4 row1 =\n            st0.s * texture2DRect(source, c + vec2(-1.0, 0.0), size) +\n            st1.s * texture2DRect(source, c + vec2(0.0, 0.0), size) +\n            st2.s * texture2DRect(source, c + vec2(1.0, 0.0), size) +\n            st3.s * texture2DRect(source, c + vec2(2.0, 0.0), size);\n        vec4 row2 =\n            st0.s * texture2DRect(source, c + vec2(-1.0, 1.0), size) +\n            st1.s * texture2DRect(source, c + vec2(0.0, 1.0), size) +\n            st2.s * texture2DRect(source, c + vec2(1.0, 1.0), size) +\n            st3.s * texture2DRect(source, c + vec2(2.0, 1.0), size);\n        vec4 row3 =\n            st0.s * texture2DRect(source, c + vec2(-1.0, 2.0), size) +\n            st1.s * texture2DRect(source, c + vec2(0.0, 2.0), size) +\n            st2.s * texture2DRect(source, c + vec2(1.0, 2.0), size) +\n            st3.s * texture2DRect(source, c + vec2(2.0, 2.0), size);\n\n        return 0.25 * ((st0.t * row0) + (st1.t * row1) + (st2.t * row2) + (st3.t * row3));\n    }");
 sys.defFile("/texfuns/euclidian.shader", "#file /texfuns/euclidian.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        vec2 f = fract(coord*size-0.5);\n        vec2 c = floor(coord*size-0.5);\n\n        vec4 sum = vec4(0.0);\n        float denom = 0.0;\n        for(int x = -1; x <=2; x++){\n            for(int y =-1; y<= 2; y++){\n                vec4 color = texture2DRect(source, c + vec2(x,y), size);\n                float dist = distance(vec2(x,y), f);\n                float factor = 1.0-smoothstep(0.0, 2.0, dist);\n                sum += color * factor;\n                denom += factor;\n            }\n        }\n        return sum/denom;\n    }\n");
 sys.defFile("/texfuns/generalBicubic.shader", "#file /texfuns/generalBicubic.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        vec2 f = fract(coord*size-0.5);\n        vec2 c = floor(coord*size-0.5);\n        vec4 sum = vec4(0.0);\n        float denom = 0.0;\n        for(int x = -1; x <=2; x++){\n            for(int y =-1; y<= 2; y++){\n                vec4 color = texture2DRect(source, c + vec2(x,y), size);\n                float fx  = interp(float(x) - f.x);\n                float fy = interp(float(y) - f.y);\n                sum += color * fx * fy;\n                denom += fx*fy;\n            }\n        }\n        return sum/denom;\n    }");
+sys.defFile("/texfuns/hex-linear.shader", "#file /texfuns/hex-linear.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        coord.x *= (size.x+0.5)/size.x;\n        float xoff = abs(1.0-mod(coord.y*size.y+0.5, 2.0));\n        coord.x -= (xoff*0.5)/size.x;\n        \n        vec2 f = fract(coord*size+0.5);\n        float even = step(1.0, mod(coord.y*size.y+0.5, 2.0));\n        f.x = mix(1.0-f.x, f.x, even);\n        float side = step(1.0, f.x+f.y);\n\n        vec3 bc = vec3(\n            mix(\n                f.xy,\n                1.0-f.yx,\n                side\n            ),\n            fract(abs(f.x+f.y-1.0))\n        );\n\n        vec2 c = floor(coord*size-0.5);\n\n        vec2 right = mix(\n            c,\n            c+vec2(1, 0),\n            even\n        )/size;\n\n        vec2 bottom = mix(\n            c+vec2(1),\n            c+vec2(0, 1),\n            even\n        )/size;\n\n        vec2 diag = mix(\n            c+mix(vec2(1,0), vec2(0,1), side),\n            c+vec2(side),\n            even\n        )/size;\n\n        float tRight = textureIntensity(source, right);\n        float tBottom = textureIntensity(source, bottom);\n        float tDiag = textureIntensity(source, diag);\n\n        return vec4(tRight*bc.x + tBottom*bc.y + tDiag*bc.z);\n    }");
+sys.defFile("/texfuns/hex-nearest.shader", "#file /texfuns/hex-nearest.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        coord.x *= (size.x+0.5)/size.x;\n        float xoff = abs(1.0-mod(coord.y*size.y+0.5, 2.0));\n        coord.x -= (xoff*0.5)/size.x;\n        \n        vec2 f = fract(coord*size+0.5);\n        float even = step(1.0, mod(coord.y*size.y+0.5, 2.0));\n        f.x = mix(1.0-f.x, f.x, even);\n        float side = step(1.0, f.x+f.y);\n\n        vec3 bc = vec3(\n            mix(\n                f.xy,\n                1.0-f.yx,\n                side\n            ),\n            fract(abs(f.x+f.y-1.0))\n        );\n\n        vec2 c = floor(coord*size-0.5);\n\n        vec2 right = mix(\n            c,\n            c+vec2(1, 0),\n            even\n        )/size;\n\n        vec2 bottom = mix(\n            c+vec2(1),\n            c+vec2(0, 1),\n            even\n        )/size;\n\n        vec2 diag = mix(\n            c+mix(vec2(1,0), vec2(0,1), side),\n            c+vec2(side),\n            even\n        )/size;\n\n        float tRight = textureIntensity(source, right);\n        float tBottom = textureIntensity(source, bottom);\n        float tDiag = textureIntensity(source, diag);\n\n        float result = mix(tRight, tBottom, step(bc.x, bc.y));\n        result = mix(tDiag, result, step(bc.z, max(bc.x, bc.y)));\n        return vec4(result);\n    }");
+sys.defFile("/texfuns/hex-smoothstep.shader", "#file /texfuns/hex-smoothstep.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        coord.x *= (size.x+0.5)/size.x;\n        float xoff = abs(1.0-mod(coord.y*size.y+0.5, 2.0));\n        coord.x -= (xoff*0.5)/size.x;\n        \n        vec2 f = fract(coord*size+0.5);\n        float even = step(1.0, mod(coord.y*size.y+0.5, 2.0));\n        f.x = mix(1.0-f.x, f.x, even);\n        float side = step(1.0, f.x+f.y);\n\n        vec3 bc = vec3(\n            mix(\n                f.xy,\n                1.0-f.yx,\n                side\n            ),\n            fract(abs(f.x+f.y-1.0))\n        );\n\n        vec2 c = floor(coord*size-0.5);\n\n        vec2 right = mix(\n            c,\n            c+vec2(1, 0),\n            even\n        )/size;\n\n        vec2 bottom = mix(\n            c+vec2(1),\n            c+vec2(0, 1),\n            even\n        )/size;\n\n        vec2 diag = mix(\n            c+mix(vec2(1,0), vec2(0,1), side),\n            c+vec2(side),\n            even\n        )/size;\n\n        float tRight = textureIntensity(source, right);\n        float tBottom = textureIntensity(source, bottom);\n        float tDiag = textureIntensity(source, diag);\n\n        bc = smoothstep(0.0, 1.0, bc);\n        bc /= bc.x+bc.y+bc.z;\n\n        return vec4(tRight*bc.x + tBottom*bc.y + tDiag*bc.z);\n    }");
+sys.defFile("/texfuns/intensity.shader", "#file /texfuns/intensity.shader\nfragment:\n    float textureIntensity(sampler2D source, vec2 coord){\n        vec2 packedIntensity = texture2D(source, coord).rg;\n        float intensityScalar = packedIntensity.r/255.0 + packedIntensity.g;\n        return intensityScalar;\n    }\n");
 sys.defFile("/texfuns/lerp.shader", "#file /texfuns/lerp.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        vec2 f = fract(coord*size-0.5);\n        vec2 c = floor(coord*size-0.5);\n\n        vec4 lb = texture2DRect(source, c+vec2(0.0, 0.0), size);\n        vec4 lt = texture2DRect(source, c+vec2(0.0, 1.0), size);\n        vec4 rb = texture2DRect(source, c+vec2(1.0, 0.0), size);\n        vec4 rt = texture2DRect(source, c+vec2(1.0, 1.0), size);\n\n        vec4 a = mix(lb, lt, f.t);\n        vec4 b = mix(rb, rt, f.t);\n        return mix(a, b, f.s);\n    }");
 sys.defFile("/texfuns/nearest.shader", "#file /texfuns/nearest.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        return texture2DRect(source, floor(coord*size), size);\n    }");
 sys.defFile("/texfuns/polynom6th.shader", "#file /texfuns/polynom6th.shader\nfragment:\n    float interp(float x){\n        float t = 1.0-linstep(0.0, 1.5, abs(x));\n        return t*t*t*(t*(t*6.0-15.0)+10.0);\n    } ");
-sys.defFile("/texfuns/rect.shader", "#file /texfuns/rect.shader\nfragment:\n    vec4 texture2DRect(sampler2D source, vec2 coord, vec2 size){\n        vec2 packedIntensity = texture2D(source, (coord+0.5)/size).rg;\n        float intensityScalar = packedIntensity.r/255.0 + packedIntensity.g;\n        return vec4(intensityScalar);\n    }");
+sys.defFile("/texfuns/rect.shader", "#file /texfuns/rect.shader\nfragment:\n    vec4 texture2DRect(sampler2D source, vec2 coord, vec2 size){\n        return vec4(textureIntensity(source, (coord+0.5)/size));\n        //vec2 packedIntensity = texture2D(source, (coord+0.5)/size).rg;\n        //float intensityScalar = packedIntensity.r/255.0 + packedIntensity.g;\n        //return vec4(intensityScalar);\n    }");
 sys.defFile("/texfuns/smoothstep.shader", "#file /texfuns/smoothstep.shader\nfragment:\n    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){\n        vec2 f = smoothstep(0.0, 1.0, fract(coord*size-0.5));\n        vec2 c = floor(coord*size-0.5);\n\n        vec4 lb = texture2DRect(source, c+vec2(0.0, 0.0), size);\n        vec4 lt = texture2DRect(source, c+vec2(0.0, 1.0), size);\n        vec4 rb = texture2DRect(source, c+vec2(1.0, 0.0), size);\n        vec4 rt = texture2DRect(source, c+vec2(1.0, 1.0), size);\n\n        vec4 a = mix(lb, lt, f.t);\n        vec4 b = mix(rb, rt, f.t);\n        return mix(a, b, f.s);\n    }");
 sys.defModule('/texture-layer', function(exports, require, fs) {
   var TextureLayer;
@@ -372,15 +376,15 @@ sys.defModule('/texture-layer', function(exports, require, fs) {
       this.haveData = false;
       this.haveColormap = false;
       this.shaders = {};
-      _ref = ['nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic'];
+      _ref = ['nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic', 'hex-nearest', 'hex-linear', 'hex-smoothstep'];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         name = _ref[_i];
-        this.shaders[name] = [fs.open('texfuns/rect.shader'), fs.open("texfuns/" + name + ".shader"), fs.open('display.shader')];
+        this.shaders[name] = [fs.open('texfuns/intensity.shader'), fs.open('texfuns/rect.shader'), fs.open("texfuns/" + name + ".shader"), fs.open('display.shader')];
       }
       _ref1 = ['bicubicLinear', 'polynom6th', 'bicubicSmoothstep', 'bspline', 'bell', 'catmull-rom'];
       for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
         name = _ref1[_j];
-        this.shaders[name] = [fs.open('texfuns/rect.shader'), fs.open("texfuns/" + name + ".shader"), fs.open("texfuns/generalBicubic.shader"), fs.open('display.shader')];
+        this.shaders[name] = [fs.open('texfuns/intensity.shader'), fs.open('texfuns/rect.shader'), fs.open("texfuns/" + name + ".shader"), fs.open("texfuns/generalBicubic.shader"), fs.open('display.shader')];
       }
       this.shader = this.gf.shader(this.shaders['bell']);
       this.state = this.gf.state({
@@ -400,7 +404,7 @@ sys.defModule('/texture-layer', function(exports, require, fs) {
       this.texture = this.gf.texture2D({
         width: 1,
         height: 1,
-        filter: 'linear',
+        filter: 'nearest',
         repeat: 'clamp'
       });
       if (params.colormap != null) {
@@ -432,32 +436,26 @@ sys.defModule('/texture-layer', function(exports, require, fs) {
     };
 
     TextureLayer.prototype.testMarkers = function() {
-      var b, i, j, lat, lng, s, t, x, y, _i, _results;
+      var b, i, j, lat, lng, s, t, x, y, _i, _j, _ref, _ref1, _ref2;
       s = 0;
       t = 0;
       b = this.bounds;
-      _results = [];
-      for (i = _i = 0; _i < 50; i = ++_i) {
-        _results.push((function() {
-          var _j, _ref, _results1;
-          _results1 = [];
-          for (j = _j = 0; _j < 50; j = ++_j) {
-            s = i / (this.texture.width - 1);
-            t = j / (this.texture.height - 1);
-            x = b.left + (b.right - b.left) * s;
-            y = b.top + (b.bottom - b.top) * t;
-            _ref = this.projection.forward([x, y]), lng = _ref[0], lat = _ref[1];
-            _results1.push(L.circleMarker({
-              lat: lat,
-              lng: lng
-            }, {
-              radius: 1
-            }).addTo(this.map));
-          }
-          return _results1;
-        }).call(this));
+      for (i = _i = 0, _ref = this.texture.width; 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
+        for (j = _j = 0, _ref1 = this.texture.height; 0 <= _ref1 ? _j < _ref1 : _j > _ref1; j = 0 <= _ref1 ? ++_j : --_j) {
+          s = i / (this.texture.width - 1);
+          t = j / (this.texture.height - 1);
+          x = b.left + (b.right - b.left) * s;
+          y = b.top + (b.bottom - b.top) * t;
+          _ref2 = this.projection.forward([x, y]), lng = _ref2[0], lat = _ref2[1];
+          L.circleMarker({
+            lat: lat,
+            lng: lng
+          }, {
+            radius: 1
+          }).addTo(this.map);
+        }
       }
-      return _results;
+      return 's = 0\nt = 0\nb = @bounds\nfor i in [0...@texture.width]\n    for j in [0...@texture.height]\n        if j % 2 == 0\n            s = i/(@texture.width-0.5)\n        else\n            s = (i+0.5)/(@texture.width-0.5)\n        t = j/(@texture.height-1)\n        x = b.left + (b.right - b.left)*s\n        y = b.top + (b.bottom - b.top)*t\n        [lng,lat] = @projection.forward([x,y])\n        L.circleMarker({lat:lat, lng:lng}, {radius:1}).addTo(@map)';
     };
 
     TextureLayer.prototype.tessellate = function(data) {
