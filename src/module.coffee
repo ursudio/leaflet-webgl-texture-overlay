@@ -1,5 +1,5 @@
 WebGLFramework = require 'webgl-framework'
-TextureLayer = require 'texture-layer'
+{TextureLayer,TextureFadeLayer} = require 'texture-layer'
 
 class WebGLTextureOverlay
     constructor: ->
@@ -16,6 +16,7 @@ class WebGLTextureOverlay
             'nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic', 'hex-nearest', 'hex-linear', 'hex-smoothstep',
             'bicubicLinear', 'polynom6th', 'bicubicSmoothstep', 'bspline', 'bell', 'catmull-rom'
         ]
+        @fades = ['crossfade', 'dissolve']
 
     onAdd: (@map) ->
         @dirty = true
@@ -92,6 +93,12 @@ class WebGLTextureOverlay
     addLayer: (params) ->
         @dirty = true
         layer = new TextureLayer(@, params)
+        @layers.push layer
+        return layer
+    
+    addFadeLayer: (params) ->
+        @dirty = true
+        layer = new TextureFadeLayer(@, params)
         @layers.push layer
         return layer
 

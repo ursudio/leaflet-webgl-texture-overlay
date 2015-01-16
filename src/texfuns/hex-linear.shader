@@ -1,5 +1,5 @@
 fragment:
-    vec4 texture2DInterp(sampler2D source, vec2 coord, vec2 size){
+    vec4 texture2DInterp(vec2 coord, vec2 size){
         coord.x *= (size.x+0.5)/size.x;
         float xoff = abs(1.0-mod(coord.y*size.y+0.5, 2.0));
         coord.x -= (xoff*0.5)/size.x;
@@ -38,9 +38,9 @@ fragment:
             even
         )/size;
 
-        float tRight = textureIntensity(source, right);
-        float tBottom = textureIntensity(source, bottom);
-        float tDiag = textureIntensity(source, diag);
+        float tRight = textureIntensity(right);
+        float tBottom = textureIntensity(bottom);
+        float tDiag = textureIntensity(diag);
 
         return vec4(tRight*bc.x + tBottom*bc.y + tDiag*bc.z);
     }

@@ -48,8 +48,10 @@
                 var overlay = L.webglTextureOverlay()
                     .addTo(map);
 
-                var intensityLayer = overlay.addLayer();
+                //var intensityLayer = overlay.addLayer();
+                var intensityLayer = overlay.addFadeLayer();
 
+                // interpolation handling
                 var setInterpolation = function(){
                     intensityLayer.setInterpolation(interpolationSelect.val());
                 };
@@ -67,27 +69,37 @@
                 }
                 setInterpolation();
 
-                /* alternate form:
-                    overlay.addLayer({
-                        interpolation: ...
-                        colormap: ...
-                        data: {
-                            width: ...
-                            height: ...
-                            bitmap: ...
-                            projection: ...
-                            bounds: {
-                                left: ...
-                                right: ...
-                                top: ...
-                                bottom: ...
-                            }
-                        }
-                    });
-                */
+                // fade function handling
+                var setFadeFun = function(){
+                    intensityLayer.setFadeFun(fadeFunSelect.val());
+                };
 
+                var fadeFunSelect = $('<select></select>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:110, right:10})
+                    .change(setFadeFun);
 
+                for(var i=0; i<overlay.fades.length; i++){
+                    var fadeFunction = overlay.fades[i];
+                    $('<option></option>')
+                        .text(fadeFunction)
+                        .appendTo(fadeFunSelect);
+                }
+                setFadeFun();
 
+                // fade factor handling
+                var setFadeFactor = function(){
+                    var factor = parseFloat(fadeFactor.val());
+                    intensityLayer.setFadeFactor(factor);
+                }
+
+                var fadeFactor = $('<input type="range" min="0" max="1" value="0" step="0.0001"></input>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:80, right:10})
+                    .bind('input', setFadeFactor);
+                setFadeFactor()
+
+                // data handling
                 $.getJSON('data/colors.json', function(colors){
                     var setColor = function(){
                         intensityLayer.setColormap(colors[colorSelect.val()]);
@@ -106,16 +118,13 @@
 
                     var setData = function(){
                         var dataName = dataSelect.val();
-                        var dataPath = 'data/' + dataName + '.json';
                         var dataPath = 'data/' + dataName + '.jickle';
 
-                        //$.getJSON(dataPath, function(data){
                         $.getJICKLE(dataPath, function(data){
                             intensityLayer.setData({
                                 width: data.width,
                                 height: data.height,
-                                //bitmap: new Uint8Array(data.bitmap),
-                                bitmap: data.bitmap,
+                                bitmaps: data.bitmaps,
                                 projection: data.projection,
                                 bounds: {
                                     left: data.nw[0],
@@ -132,20 +141,8 @@
                         .css({position:'absolute', top:30, right:10})
                         .change(setData);
                         
-                    //$('<option></option>')
-                    //    .text('hex_north_ontario')
-                    //    .appendTo(dataSelect)
-
                     $('<option></option>')
-                        .text('footprint-area-delta')
-                        .appendTo(dataSelect)
-                        
-                    $('<option></option>')
-                        .text('human-population')
-                        .appendTo(dataSelect)
-                    
-                    $('<option></option>')
-                        .text('timber-production')
+                        .text('twolayer')
                         .appendTo(dataSelect)
                         
                     setData();

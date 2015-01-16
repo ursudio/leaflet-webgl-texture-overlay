@@ -160,11 +160,6 @@ exports = class State
         
         @shader.use()
 
-        for texture, unit in @textures
-            texture.texture.bind(unit)
-            @int texture.name, unit
-        
-       
         @setupVertexBuffer()
 
         @gf.currentState = @
@@ -180,6 +175,10 @@ exports = class State
         else
             if @gf.currentFramebuffer?
                 @gf.currentFramebuffer.unuse()
+        
+        for texture, unit in @textures #FIXME
+            texture.texture.bind(unit)
+            @int texture.name, unit
         
         if @gf.currentState isnt @
             @setupState()
