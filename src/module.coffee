@@ -1,5 +1,5 @@
 WebGLFramework = require 'webgl-framework'
-{TextureLayer,TextureFadeLayer} = require 'texture-layer'
+layer = require 'texture-layer'
 
 class WebGLTextureOverlay
     constructor: ->
@@ -92,13 +92,19 @@ class WebGLTextureOverlay
 
     addLayer: (params) ->
         @dirty = true
-        layer = new TextureLayer(@, params)
+        layer = new layer.Single(@, params)
         @layers.push layer
         return layer
     
     addFadeLayer: (params) ->
         @dirty = true
-        layer = new TextureFadeLayer(@, params)
+        layer = new layer.Fade(@, params)
+        @layers.push layer
+        return layer
+    
+    addVideoLayer: (params) ->
+        @dirty = true
+        layer = new layer.Video(@, params)
         @layers.push layer
         return layer
 

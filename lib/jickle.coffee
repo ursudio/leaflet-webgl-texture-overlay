@@ -197,8 +197,8 @@ class Reader
 
             when typecode.int8 then @int8()
             when typecode.int8array then @int8array()
-            when typecode.uint8 then @int8()
-            when typecode.uint8array then @int8array()
+            when typecode.uint8 then @uint8()
+            when typecode.uint8array then @uint8array()
 
             when typecode.int16 then @int16()
             when typecode.int16array then @int16array()
