@@ -70,7 +70,12 @@
 
                 // fade function handling
                 var setFadeFun = function(){
-                    intensityLayer.setFadeFun(fadeFunSelect.val());
+                    intensityLayer.setFadeFun(fadeFunSelect.val(), {
+                        spatialFrequency: parseFloat(spatialFrequency.val()),
+                        timeFrequency: parseFloat(timeFrequency.val()),
+                        amplitude: parseFloat(amplitude.val()),
+                        attack: parseFloat(attack.val())
+                    });
                 };
 
                 var fadeFunSelect = $('<select></select>')
@@ -84,15 +89,36 @@
                         .text(fadeFunction)
                         .appendTo(fadeFunSelect);
                 }
+                
+                var spatialFrequency = $('<input type="range" min="0.5" max="20" value="5" step="0.01"></input>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:130, right:10, width:300})
+                    .bind('input', setFadeFun);
+                    
+                var timeFrequency = $('<input type="range" min="1.0" max="50" value="8" step="0.01"></input>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:150, right:10, width:300})
+                    .bind('input', setFadeFun);
+                    
+                var amplitude = $('<input type="range" min="0.5" max="10" value="1.5" step="0.01"></input>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:170, right:10, width:300})
+                    .bind('input', setFadeFun);
+                    
+                var attack = $('<input type="range" min="0" max="0.5" value="0.25" step="0.01"></input>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:190, right:10, width:300})
+                    .bind('input', setFadeFun);
+
                 setFadeFun();
 
-                // timeHandling
+                // fade factor handling
                 var setTime = function(){
                     var t = parseFloat(time.val());
                     intensityLayer.setTime(t);
                 }
 
-                var time = $('<input type="range" min="0" max="1" value="0" step="0.01"></input>')
+                var time = $('<input type="range" min="1900" max="2060" value="1900" step="0.01"></input>')
                     .appendTo('body')
                     .css({position:'absolute', top:80, right:10, width:300})
                     .bind('input', setTime);
@@ -123,16 +149,13 @@
                             intensityLayer.setData({
                                 width: data.width,
                                 height: data.height,
-                                bitmaps: [
-                                    {time:0, bitmap:data.bitmaps[0]},
-                                    {time:1, bitmap:data.bitmaps[1]}
-                                ],
+                                bitmaps: data.bitmaps,
                                 projection: data.projection,
                                 bounds: {
-                                    left: data.nw[0],
-                                    right: data.se[0],
-                                    top: data.nw[1],
-                                    bottom: data.se[1],
+                                    left: data.left,
+                                    right: data.right,
+                                    top: data.top,
+                                    bottom: data.bottom
                                 }
                             });
                         });
@@ -144,7 +167,11 @@
                         .change(setData);
                         
                     $('<option></option>')
-                        .text('twolayer')
+                        .text('annual-precipitation-video')
+                        .appendTo(dataSelect)
+                        
+                    $('<option></option>')
+                        .text('human-population-video')
                         .appendTo(dataSelect)
                         
                     setData();

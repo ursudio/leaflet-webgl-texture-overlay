@@ -16,7 +16,7 @@ class WebGLTextureOverlay
             'nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic', 'hex-nearest', 'hex-linear', 'hex-smoothstep',
             'bicubicLinear', 'polynom6th', 'bicubicSmoothstep', 'bspline', 'bell', 'catmull-rom'
         ]
-        @fades = ['crossfade', 'dissolve']
+        @fades = ['crossfade', 'dissolve', 'noise']
 
     onAdd: (@map) ->
         @dirty = true
@@ -91,18 +91,6 @@ class WebGLTextureOverlay
         requestAnimationFrame @draw
 
     addLayer: (params) ->
-        @dirty = true
-        layer = new layer.Single(@, params)
-        @layers.push layer
-        return layer
-    
-    addFadeLayer: (params) ->
-        @dirty = true
-        layer = new layer.Fade(@, params)
-        @layers.push layer
-        return layer
-    
-    addVideoLayer: (params) ->
         @dirty = true
         layer = new layer.Video(@, params)
         @layers.push layer

@@ -38,12 +38,11 @@ fragment:
             even
         )/size;
 
-        float tRight = textureIntensity(right);
-        float tBottom = textureIntensity(bottom);
-        float tDiag = textureIntensity(diag);
+        float tRight = textureIntensity(right, size);
+        float tBottom = textureIntensity(bottom, size);
+        float tDiag = textureIntensity(diag, size);
 
-        bc = smoothstep(0.0, 1.0, bc);
-        bc /= bc.x+bc.y+bc.z;
-
-        return vec4(tRight*bc.x + tBottom*bc.y + tDiag*bc.z);
+        float result = mix(tRight, tBottom, step(bc.x, bc.y));
+        result = mix(tDiag, result, step(bc.z, max(bc.x, bc.y)));
+        return vec4(result);
     }

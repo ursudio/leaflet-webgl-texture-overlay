@@ -1,16 +1,18 @@
 BaseLayer = require 'base'
 
-exports = class TextureFadeLayer extends BaseLayer
+exports = class TextureVideoLayer extends BaseLayer
     constructor: (@parent, params={}) ->
         @gf = @parent.gf
         @map = @parent.map
         @haveData = false
         @haveColormap = false
         @mixFactor = 0
+        @time = 0
 
         @shaders = {
             'crossfade': @getShadersFadeFun 'crossfade'
             'dissolve': @getShadersFadeFun 'dissolve'
+            'noise': @getShadersFadeFun 'noise'
         }
         @fadeFun = 'crossfade'
         @interpolationName = 'bell'
@@ -58,20 +60,20 @@ exports = class TextureFadeLayer extends BaseLayer
 
         for name in ['nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic', 'hex-nearest', 'hex-linear', 'hex-smoothstep']
             shaders[name] = [
-                fs.open("texfuns/#{fadeFun}.shader")
-                fs.open('texfuns/intensity-video.shader')
-                fs.open('texfuns/rect.shader')
-                fs.open("texfuns/#{name}.shader")
+                fs.open("texfuns/tween/#{fadeFun}.shader")
+                fs.open('texfuns/intensity.shader')
+                fs.open('texfuns/interpolation/rect.shader')
+                fs.open("texfuns/interpolation/#{name}.shader")
                 fs.open('display.shader')
             ]
 
         for name in ['bicubicLinear', 'polynom6th', 'bicubicSmoothstep', 'bspline', 'bell', 'catmull-rom']
             shaders[name] = [
-                fs.open("texfuns/#{fadeFun}.shader")
-                fs.open('texfuns/intensity-video.shader')
-                fs.open('texfuns/rect.shader')
-                fs.open("texfuns/#{name}.shader")
-                fs.open("texfuns/generalBicubic.shader")
+                fs.open("texfuns/tween/#{fadeFun}.shader")
+                fs.open('texfuns/intensity.shader')
+                fs.open('texfuns/interpolation/rect.shader')
+                fs.open("texfuns/interpolation/#{name}.shader")
+                fs.open("texfuns/interpolation/generalBicubic.shader")
                 fs.open('display.shader')
             ]
 
@@ -80,10 +82,14 @@ exports = class TextureFadeLayer extends BaseLayer
     updateBitmaps: (data) ->
         @bitmaps = data.bitmaps
 
+        @firstFrame = @bitmaps[0]
+        @lastFrame = @bitmaps[@bitmaps.length-1]
+
         @frame0 = @bitmaps[0]
-        @frame1 = @bitmaps[1]
+        @frame1 = @bitmaps[1%@bitmaps.length]
 
         @mixFactor = 0
+        @time = 0
         @texture0.dataSized @frame0.bitmap, @width, @height
         @texture1.dataSized @frame1.bitmap, @width, @height
 
@@ -92,6 +98,7 @@ exports = class TextureFadeLayer extends BaseLayer
             @state
                 .float('colormap', @colormap)
                 .float('mixFactor', @mixFactor)
+                .float('time', @time)
                 .vec2('sourceSize', @texture1.width, @texture1.height)
                 .sampler('source0', @texture0)
                 .sampler('source1', @texture1)
@@ -101,7 +108,22 @@ exports = class TextureFadeLayer extends BaseLayer
                 .float('verticalOffset', verticalOffset)
                 .vec2('slippyBounds.southWest', southWest.x, southWest.y)
                 .vec2('slippyBounds.northEast', northEast.x, northEast.y)
-                .draw()
+
+            if @fadeFun is 'noise'
+                if @fadeParams?
+                    @state
+                        .float('spatialFrequency', @fadeParams.spatialFrequency ? 10)
+                        .float('timeFrequency', @fadeParams.timeFrequency ? @bitmaps.length/2)
+                        .float('amplitude', @fadeParams.amplitude ? 1.0)
+                        .float('attack', @fadeParams.attack ? 0.25)
+                else
+                    @state
+                        .float('spatialFrequency', 10)
+                        .float('timeFrequency', @bitmaps.length/2)
+                        .float('amplitude', 1.0)
+                        .float('attack', 0.25)
+
+            @state.draw()
    
     ## public interface ##
     setData: (data) ->
@@ -148,11 +170,14 @@ exports = class TextureFadeLayer extends BaseLayer
             if @frame1 isnt frame1
                 @frame1 = frame1
                 @texture1.dataSized @frame1.bitmap, @width, @height
-    
+
+            @time = (time - @firstFrame.time)/(@lastFrame.time - @firstFrame.time)
+
     setInterpolation: (@interpolationName) ->
         @parent.dirty = true
         @shader.source @shaders[@fadeFun][@interpolationName]
 
-    setFadeFun: (@fadeFun) ->
+    setFadeFun: (@fadeFun, params) ->
+        @fadeParams = params
         @parent.dirty = true
         @shader.source @shaders[@fadeFun][@interpolationName]

@@ -38,9 +38,9 @@ fragment:
             even
         )/size;
 
-        float tRight = textureIntensity(right);
-        float tBottom = textureIntensity(bottom);
-        float tDiag = textureIntensity(diag);
+        float tRight = textureIntensity(right, size);
+        float tBottom = textureIntensity(bottom, size);
+        float tDiag = textureIntensity(diag, size);
 
         return vec4(tRight*bc.x + tBottom*bc.y + tDiag*bc.z);
     }

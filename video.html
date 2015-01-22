@@ -48,7 +48,7 @@
                 var overlay = L.webglTextureOverlay()
                     .addTo(map);
 
-                var intensityLayer = overlay.addVideoLayer();
+                var intensityLayer = overlay.addLayer();
 
                 // interpolation handling
                 var setInterpolation = function(){
@@ -86,7 +86,7 @@
                 }
                 setFadeFun();
 
-                // fade factor handling
+                // timeHandling
                 var setTime = function(){
                     var t = parseFloat(time.val());
                     intensityLayer.setTime(t);

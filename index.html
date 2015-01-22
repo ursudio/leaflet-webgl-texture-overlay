@@ -67,26 +67,6 @@
                 }
                 setInterpolation();
 
-                /* alternate form:
-                    overlay.addLayer({
-                        interpolation: ...
-                        colormap: ...
-                        data: {
-                            width: ...
-                            height: ...
-                            bitmap: ...
-                            projection: ...
-                            bounds: {
-                                left: ...
-                                right: ...
-                                top: ...
-                                bottom: ...
-                            }
-                        }
-                    });
-                */
-
-
 
                 $.getJSON('data/colors.json', function(colors){
                     var setColor = function(){
@@ -106,16 +86,15 @@
 
                     var setData = function(){
                         var dataName = dataSelect.val();
-                        var dataPath = 'data/' + dataName + '.json';
                         var dataPath = 'data/' + dataName + '.jickle';
 
-                        //$.getJSON(dataPath, function(data){
                         $.getJICKLE(dataPath, function(data){
                             intensityLayer.setData({
                                 width: data.width,
                                 height: data.height,
-                                //bitmap: new Uint8Array(data.bitmap),
-                                bitmap: data.bitmap,
+                                bitmaps: [
+                                    {time:0, bitmap:data.bitmap},
+                                ],
                                 projection: data.projection,
                                 bounds: {
                                     left: data.nw[0],
@@ -132,10 +111,6 @@
                         .css({position:'absolute', top:30, right:10})
                         .change(setData);
                         
-                    //$('<option></option>')
-                    //    .text('hex_north_ontario')
-                    //    .appendTo(dataSelect)
-
                     $('<option></option>')
                         .text('footprint-area-delta')
                         .appendTo(dataSelect)
