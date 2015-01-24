@@ -104,14 +104,26 @@ fragment:
       }
 
     uniform float time, spatialFrequency, timeFrequency, amplitude, attack;
+    uniform float spatialLacunarity, timeLacunarity, gain;
+    float noise(vec2 coord){
+        float result = 0.0;
+        for(int i=0; i<5; i++){
+            float fi = float(i);
+            float sl = pow(spatialLacunarity, fi);
+            float tl = pow(timeLacunarity, fi);
+            float g = pow(gain, fi);
+            result += snoise(vec3(coord*spatialFrequency*sl, time*timeFrequency*tl+fi*10.0))*g;
+        }
+        return result;
+    }
+
     float fadeFun(float a, float b, float f, vec2 coord, vec2 size){
-        float gain = smoothstep(0.0, attack, f) - smoothstep(1.0-attack, 1.0, f);
+        float envelope = smoothstep(0.0, attack, f) - smoothstep(1.0-attack, 1.0, f);
 
         float aspect = size.x/size.y;
         coord.x = coord.x*aspect;
 
-        float n = snoise(vec3(coord*spatialFrequency, time*timeFrequency));
-        //n = floor(n*amplitude+0.5)/255.0;
+        float n = noise(coord);
         n = (n*amplitude)/255.0;
-        return mix(a, b, f) + n*gain;
+        return mix(a, b, f) + n*envelope;
     }

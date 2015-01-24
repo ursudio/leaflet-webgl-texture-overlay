@@ -16,7 +16,7 @@ class WebGLTextureOverlay
             'nearest', 'lerp', 'smoothstep', 'euclidian', 'classicBicubic', 'hex-nearest', 'hex-linear', 'hex-smoothstep',
             'bicubicLinear', 'polynom6th', 'bicubicSmoothstep', 'bspline', 'bell', 'catmull-rom'
         ]
-        @fades = ['crossfade', 'dissolve', 'noise']
+        @fades = ['crossfade', 'dissolve', 'noise', 'fbm']
 
     onAdd: (@map) ->
         @dirty = true

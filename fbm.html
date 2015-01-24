@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+        <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+        <script src="WebGLTextureOverlay.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.3.3/proj4.js"></script>
+        <script src="lib/jickle.js"></script>
+
+        <style>
+            html,body{
+                height: 100%;
+                width: 100%;
+                overflow: hidden;
+                margin: 0;
+                padding: 0;
+            }
+            #map{
+                height: 100%;
+                width: 100%;
+            }
+            canvas.leaflet-heatmap-layer{
+                position: absolute;
+                top: 0px;
+                left: 0px;
+            }
+        </style>
+        <script>
+            $.getJICKLE = function(path, onload){
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', path, true);
+                xhr.responseType = 'arraybuffer';
+                xhr.onload = function(){
+                    onload(JICKLE.parse(xhr.response));
+                };
+                xhr.send();
+            }
+
+            $(function(){
+                var map = L.map('map').setView([59.984134,-119.960313], 6);
+                //var map = L.map('map').setView([52,-85], 6);
+
+                L.tileLayer('http://otile{s}.mqcdn.com/tiles/1.0.0/map/{z}/{x}/{y}.jpg', { 
+                    subdomains: '1234'
+                }).addTo(map);
+
+                var overlay = L.webglTextureOverlay()
+                    .addTo(map);
+
+                var intensityLayer = overlay.addLayer();
+
+                // interpolation handling
+                var setInterpolation = function(){
+                    intensityLayer.setInterpolation(interpolationSelect.val());
+                };
+
+                var interpolationSelect = $('<select></select>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:50, right:10})
+                    .change(setInterpolation);
+
+                for(var i=0; i<overlay.interpolations.length; i++){
+                    var interpolation = overlay.interpolations[i];
+                    $('<option></option>')
+                        .text(interpolation)
+                        .appendTo(interpolationSelect);
+                }
+                setInterpolation();
+
+                // fade function handling
+                var setFadeFun = function(){
+                    intensityLayer.setFadeFun(fadeFunSelect.val(), {
+                        spatialFrequency: parseFloat(spatialFrequency.val()),
+                        timeFrequency: parseFloat(timeFrequency.val()),
+                        amplitude: parseFloat(amplitude.val()),
+                        attack: parseFloat(attack.val()),
+                        spatialLacunarity: parseFloat(spatialLacunarity.val()),
+                        timeLacunarity: parseFloat(timeLacunarity.val()),
+                        gain: parseFloat(gain.val())
+                    });
+                };
+
+                var fadeFunSelect = $('<select></select>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:110, right:10})
+                    .change(setFadeFun);
+
+                for(var i=0; i<overlay.fades.length; i++){
+                    var fadeFunction = overlay.fades[i];
+                    $('<option></option>')
+                        .text(fadeFunction)
+                        .appendTo(fadeFunSelect);
+                }
+                
+                var spatialFrequency = $('<input type="range" min="0.5" max="20" value="5" step="0.01"></input>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:130, right:10, width:300})
+                    .bind('input', setFadeFun);
+                    
+                var timeFrequency = $('<input type="range" min="1.0" max="50" value="8" step="0.01"></input>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:150, right:10, width:300})
+                    .bind('input', setFadeFun);
+                    
+                var amplitude = $('<input type="range" min="0.5" max="10" value="1.5" step="0.01"></input>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:170, right:10, width:300})
+                    .bind('input', setFadeFun);
+                    
+                var attack = $('<input type="range" min="0" max="0.5" value="0.25" step="0.01"></input>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:190, right:10, width:300})
+                    .bind('input', setFadeFun);
+                    
+                var spatialLacunarity = $('<input type="range" min="0" max="4.0" value="2.0" step="0.01"></input>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:220, right:10, width:300})
+                    .bind('input', setFadeFun);
+                    
+                var timeLacunarity = $('<input type="range" min="0" max="4.0" value="1.0" step="0.01"></input>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:250, right:10, width:300})
+                    .bind('input', setFadeFun);
+                    
+                var gain = $('<input type="range" min="0" max="2.0" value="0.5" step="0.01"></input>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:280, right:10, width:300})
+                    .bind('input', setFadeFun);
+
+                setFadeFun();
+
+                // fade factor handling
+                var setTime = function(){
+                    var t = parseFloat(time.val());
+                    intensityLayer.setTime(t);
+                }
+
+                var time = $('<input type="range" min="1900" max="2060" value="1900" step="0.01"></input>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:80, right:10, width:300})
+                    .bind('input', setTime);
+                setTime()
+
+                // data handling
+                $.getJSON('data/colors.json', function(colors){
+                    var setColor = function(){
+                        intensityLayer.setColormap(colors[colorSelect.val()]);
+                    };
+                    var colorSelect = $('<select></select>')
+                        .appendTo('body')
+                        .css({position:'absolute', top:10, right:10})
+                        .change(setColor);
+
+                    for(name in colors){
+                        var option = $('<option></option>')
+                            .text(name)
+                            .appendTo(colorSelect);
+                    }
+                    setColor(); 
+
+                    var setData = function(){
+                        var dataName = dataSelect.val();
+                        var dataPath = 'data/' + dataName + '.jickle';
+
+                        $.getJICKLE(dataPath, function(data){
+                            intensityLayer.setData({
+                                width: data.width,
+                                height: data.height,
+                                bitmaps: data.bitmaps,
+                                projection: data.projection,
+                                bounds: {
+                                    left: data.left,
+                                    right: data.right,
+                                    top: data.top,
+                                    bottom: data.bottom
+                                }
+                            });
+                        });
+                    };
+                    
+                    var dataSelect = $('<select></select>')
+                        .appendTo('body')
+                        .css({position:'absolute', top:30, right:10})
+                        .change(setData);
+                        
+                    $('<option></option>')
+                        .text('annual-precipitation-video')
+                        .appendTo(dataSelect)
+                        
+                    $('<option></option>')
+                        .text('human-population-video')
+                        .appendTo(dataSelect)
+                        
+                    setData();
+                });
+            });
+        </script>
+    </head>
+    <body>
+	    <div id="map"></div>
+    </body>
+</html>

@@ -13,6 +13,7 @@ exports = class TextureVideoLayer extends BaseLayer
             'crossfade': @getShadersFadeFun 'crossfade'
             'dissolve': @getShadersFadeFun 'dissolve'
             'noise': @getShadersFadeFun 'noise'
+            'fbm': @getShadersFadeFun 'fbm'
         }
         @fadeFun = 'crossfade'
         @interpolationName = 'bell'
@@ -109,19 +110,30 @@ exports = class TextureVideoLayer extends BaseLayer
                 .vec2('slippyBounds.southWest', southWest.x, southWest.y)
                 .vec2('slippyBounds.northEast', northEast.x, northEast.y)
 
-            if @fadeFun is 'noise'
+            if @fadeFun is 'noise' or @fadeFun is 'fbm'
                 if @fadeParams?
                     @state
                         .float('spatialFrequency', @fadeParams.spatialFrequency ? 10)
                         .float('timeFrequency', @fadeParams.timeFrequency ? @bitmaps.length/2)
                         .float('amplitude', @fadeParams.amplitude ? 1.0)
                         .float('attack', @fadeParams.attack ? 0.25)
+                    if @fadeFun is 'fbm'
+                        @state
+                            .float('spatialLacunarity', @fadeParams.spatialLacunarity ? 2)
+                            .float('timeLacunarity', @fadeParams.timeLacunarity ? 1)
+                            .float('gain', @fadeParams.gain ? 0.5)
+
                 else
                     @state
                         .float('spatialFrequency', 10)
                         .float('timeFrequency', @bitmaps.length/2)
                         .float('amplitude', 1.0)
                         .float('attack', 0.25)
+                    if @fadeFun is 'fbm'
+                        @state
+                            .float('spatialLacunarity', 2)
+                            .float('timeLacunarity', 1)
+                            .float('gain', 0.5)
 
             @state.draw()
    
