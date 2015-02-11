@@ -430,14 +430,19 @@ sys.defModule('/texture-layer/base', function(exports, require, fs) {
     };
 
     BaseLayer.prototype.setColormap = function(data) {
-      var color, i, _i, _len, _ref;
+      var color, i, _i, _len, extend = L.Util.extend;
       this.parent.dirty = true;
-      data = data.slice(0);
-      data.unshift(data[0]);
-      data.push(data[data.length - 1]);
+      data = data.slice();
+      // deep copies of color objects
+      data.unshift( extend({}, data[0]) );
+      data.push( extend({}, data[data.length - 1]) );
       data[0].alpha = 0;
-      this.colormap = new Float32Array(18 * 5);
-      for (i = _i = 0, _len = data.length; _i < _len; i = ++_i) {
+      // readjust centers of new color indices
+      data[0].center = 0;
+      data[data.length - 1].center = data.length;
+      _len = data.length;
+      this.colormap = new Float32Array(_len * 5);
+      for (i = _i = 0; _i < _len; i = ++_i) {
         color = data[i];
         this.colormap[i * 5 + 0] = color.r / 255;
         this.colormap[i * 5 + 1] = color.g / 255;
