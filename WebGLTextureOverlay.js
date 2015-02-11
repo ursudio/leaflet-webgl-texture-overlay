@@ -430,7 +430,7 @@ sys.defModule('/texture-layer/base', function(exports, require, fs) {
     };
 
     BaseLayer.prototype.setColormap = function(data) {
-      var color, i, _i, _len, extend = L.Util.extend;
+      var color, i, _i, _len, _ref, extend = L.Util.extend;
       this.parent.dirty = true;
       data = data.slice();
       // deep copies of color objects
