@@ -439,10 +439,9 @@ sys.defModule('/texture-layer/base', function(exports, require, fs) {
       data[0].alpha = 0;
       // readjust centers of new color indices
       data[0].center = 0;
-      data[data.length - 1].center = data.length;
-      _len = data.length;
+      data[data.length - 1].center = data.length - 1;
       this.colormap = new Float32Array(17 * 5);
-      for (i = _i = 0; _i < _len; i = ++_i) {
+      for (i = _i = 0, _len = data.length; _i < _len; i = ++_i) {
         color = data[i];
         this.colormap[i * 5 + 0] = color.r / 255;
         this.colormap[i * 5 + 1] = color.g / 255;
