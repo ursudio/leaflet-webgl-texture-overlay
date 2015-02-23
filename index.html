@@ -89,20 +89,25 @@
                         var dataPath = 'data/' + dataName + '.jickle';
 
                         $.getJICKLE(dataPath, function(data){
-                            intensityLayer.setData({
-                                width: data.width,
-                                height: data.height,
-                                bitmaps: [
-                                    {time:0, bitmap:data.bitmap},
-                                ],
-                                projection: data.projection,
-                                bounds: {
-                                    left: data.nw[0],
-                                    right: data.se[0],
-                                    top: data.nw[1],
-                                    bottom: data.se[1],
-                                }
-                            });
+                            if(data.bitmap == null){
+                                intensityLayer.setData(data);
+                            }
+                            else{
+                                intensityLayer.setData({
+                                    width: data.width,
+                                    height: data.height,
+                                    bitmaps: [
+                                        {time:0, bitmap:data.bitmap},
+                                    ],
+                                    projection: data.projection,
+                                    bounds: {
+                                        left: data.nw[0],
+                                        right: data.se[0],
+                                        top: data.nw[1],
+                                        bottom: data.se[1],
+                                    }
+                                });
+                            }
                         });
                     };
                     
@@ -121,6 +126,10 @@
                     
                     $('<option></option>')
                         .text('timber-production')
+                        .appendTo(dataSelect)
+                        
+                        $('<option></option>')
+                        .text('arrayBufferViewNotBigEnough')
                         .appendTo(dataSelect)
                         
                     setData();

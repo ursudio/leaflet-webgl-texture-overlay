@@ -156,11 +156,13 @@ exports.Texture2D = class Texture2D extends ConcreteTexture
         @gl.texImage2D @target, 0, @channels, @channels, @type, data
         return @
     
-    dataSized: (data, width, height) ->
+    dataSized: (data, width, height, unpackAlignment=1) ->
         @bind()
 
         @width = width
         @height = height
+
+        @gl.pixelStorei @gl.UNPACK_ALIGNMENT, unpackAlignment
         @gl.texImage2D @target, 0, @channels, @width, @height, 0, @channels, @type, data
         return @
 

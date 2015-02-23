@@ -38,6 +38,8 @@ class typecode:
     uint64          = 23
     uint64array     = 24
 
+    null            = 25
+
 def encodeType(type):
     return struct.pack('<B', type)
 
@@ -89,6 +91,9 @@ def encodeDouble(data):
         struct.pack('<d', data)
     )
 
+def encodeNull():
+    return encodeType(typecode.null)
+
 def encodeArray(data, offset):
     l = len(data)
     offset += 5
@@ -133,7 +138,7 @@ def encodeArray(data, offset):
 def dumps(data, offset=0):
     if isinstance(data, basestring):
         return encodeString(data)
-    if isinstance(data, dict):
+    elif isinstance(data, dict):
         return encodeObject(data, offset)
     elif isinstance(data, list):
         return encodeList(data, offset)
@@ -143,22 +148,10 @@ def dumps(data, offset=0):
         return encodeDouble(data)
     elif isinstance(data, array.array):
         return encodeArray(data, offset)
+    elif data is None:
+        return encodeNull()
+    else:
+        raise Exception('unknown type', type(data))
 
-'''
-#open('data.bin', 'wb').write(encode(123))
-#open('data.bin', 'wb').write(encode('asdf'))
-#open('data.bin', 'wb').write(encode({'asdf':123}))
-#open('data.bin', 'wb').write(encode([1,2,3]))
-#open('data.bin', 'wb').write(encode([1,2,{'asdf':123}]))
-open('data.bin', 'wb').write(encode({
-    'foo1': array.array('b', [1,2,3]),
-    'foo2': array.array('i', [4,5,6]),
-    'foo3': array.array('f', [7,8,9]),
-    'foo4': array.array('d', [7,8,9]),
-    'substructure': [
-        'asdf',
-        123,
-        456.0,
-    ]
-}))
-'''
+if __name__ == '__main__':
+    print map(ord, dumps([None]))

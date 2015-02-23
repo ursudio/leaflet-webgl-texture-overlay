@@ -36,6 +36,8 @@ typecode =
     uint64          : 23
     uint64array     : 24
 
+    null            : 25
+
 class Reader
     constructor: (@buffer) ->
         @view = new DataView(buffer)
@@ -220,6 +222,8 @@ class Reader
             
             when typecode.float64 then @float64()
             when typecode.float64array then @float64array()
+
+            when typecode.null then null
 
             else
                 throw 'unknown type: ' + type

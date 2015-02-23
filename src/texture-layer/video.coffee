@@ -91,8 +91,8 @@ exports = class TextureVideoLayer extends BaseLayer
 
         @mixFactor = 0
         @time = 0
-        @texture0.dataSized @frame0.bitmap, @width, @height
-        @texture1.dataSized @frame1.bitmap, @width, @height
+        @texture0.dataSized @frame0.bitmap, @width, @height, 1
+        @texture1.dataSized @frame1.bitmap, @width, @height, 1
 
     draw: (southWest, northEast, verticalSize, verticalOffset) ->
         if @haveData and @haveColormap
@@ -177,11 +177,11 @@ exports = class TextureVideoLayer extends BaseLayer
 
             if @frame0 isnt frame0
                 @frame0 = frame0
-                @texture0.dataSized @frame0.bitmap, @width, @height
+                @texture0.dataSized @frame0.bitmap, @width, @height, 1
 
             if @frame1 isnt frame1
                 @frame1 = frame1
-                @texture1.dataSized @frame1.bitmap, @width, @height
+                @texture1.dataSized @frame1.bitmap, @width, @height, 1
 
             @time = (time - @firstFrame.time)/(@lastFrame.time - @firstFrame.time)
 

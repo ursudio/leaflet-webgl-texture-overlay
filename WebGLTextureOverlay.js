@@ -430,16 +430,14 @@ sys.defModule('/texture-layer/base', function(exports, require, fs) {
     };
 
     BaseLayer.prototype.setColormap = function(data) {
-      var color, i, _i, _len, _ref, extend = L.Util.extend;
+      var color, i, _i, _len, _ref;
       this.parent.dirty = true;
-      data = data.slice();
-      // deep copies of color objects
-      data.unshift( extend({}, data[0]) );
-      data.push( extend({}, data[data.length - 1]) );
+      data = data.slice(0);
+      data.unshift(L.Util.extend({}, data[0]));
+      data.push(L.Util.extend({}, data[data.length - 1]));
       data[0].alpha = 0;
-      // readjust centers of new color indices
       data[0].center = 0;
-      data[data.length - 1].center = data.length - 1;
+      data[data.length - 1].center = data[data.length - 2].center + 1;
       this.colormap = new Float32Array(17 * 5);
       for (i = _i = 0, _len = data.length; _i < _len; i = ++_i) {
         color = data[i];
@@ -603,8 +601,8 @@ sys.defModule('/texture-layer/video', function(exports, require, fs) {
       this.frame1 = this.bitmaps[1 % this.bitmaps.length];
       this.mixFactor = 0;
       this.time = 0;
-      this.texture0.dataSized(this.frame0.bitmap, this.width, this.height);
-      return this.texture1.dataSized(this.frame1.bitmap, this.width, this.height);
+      this.texture0.dataSized(this.frame0.bitmap, this.width, this.height, 1);
+      return this.texture1.dataSized(this.frame1.bitmap, this.width, this.height, 1);
     };
 
     TextureVideoLayer.prototype.draw = function(southWest, northEast, verticalSize, verticalOffset) {
@@ -661,11 +659,11 @@ sys.defModule('/texture-layer/video', function(exports, require, fs) {
         this.mixFactor = (time - frame0.time) / (frame1.time - frame0.time);
         if (this.frame0 !== frame0) {
           this.frame0 = frame0;
-          this.texture0.dataSized(this.frame0.bitmap, this.width, this.height);
+          this.texture0.dataSized(this.frame0.bitmap, this.width, this.height, 1);
         }
         if (this.frame1 !== frame1) {
           this.frame1 = frame1;
-          this.texture1.dataSized(this.frame1.bitmap, this.width, this.height);
+          this.texture1.dataSized(this.frame1.bitmap, this.width, this.height, 1);
         }
         return this.time = (time - this.firstFrame.time) / (this.lastFrame.time - this.firstFrame.time);
       }
@@ -2640,10 +2638,14 @@ sys.defModule('/webgl-framework/texture', function(exports, require, fs) {
       return this;
     };
 
-    Texture2D.prototype.dataSized = function(data, width, height) {
+    Texture2D.prototype.dataSized = function(data, width, height, unpackAlignment) {
+      if (unpackAlignment == null) {
+        unpackAlignment = 1;
+      }
       this.bind();
       this.width = width;
       this.height = height;
+      this.gl.pixelStorei(this.gl.UNPACK_ALIGNMENT, unpackAlignment);
       this.gl.texImage2D(this.target, 0, this.channels, this.width, this.height, 0, this.channels, this.type, data);
       return this;
     };
