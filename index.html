@@ -68,7 +68,8 @@
                 setInterpolation();
 
 
-                $.getJSON('data/colors.json', function(colors){
+                $.getJSON('data/colors2.json', function(colors){
+                    console.log(colors);
                     var setColor = function(){
                         intensityLayer.setColormap(colors[colorSelect.val()]);
                     };

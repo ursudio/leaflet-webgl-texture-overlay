@@ -94,6 +94,12 @@ exports = class TextureVideoLayer extends BaseLayer
         @texture0.dataSized @frame0.bitmap, @width, @height, 1
         @texture1.dataSized @frame1.bitmap, @width, @height, 1
 
+        #min = max = data.bitmaps[0].bitmap[0]
+        #for bitmap in data.bitmaps
+        #    for value in bitmap.bitmap
+        #        min = Math.min min, value
+        #        max = Math.max max, value
+
     draw: (southWest, northEast, verticalSize, verticalOffset) ->
         if @haveData and @haveColormap
             @state
@@ -105,6 +111,7 @@ exports = class TextureVideoLayer extends BaseLayer
                 .sampler('source1', @texture1)
                 .float('minIntensity', 0)
                 .float('maxIntensity', 255)
+                .int('colorCount', @colorCount)
                 .float('verticalSize', verticalSize)
                 .float('verticalOffset', verticalOffset)
                 .vec2('slippyBounds.southWest', southWest.x, southWest.y)

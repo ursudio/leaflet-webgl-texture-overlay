@@ -51,16 +51,13 @@ exports = class BaseLayer
         @state.vertices(v)
     
     setColormap: (data) ->
+        if data.length > 18
+            throw new Error("Color map is too long, maximum of 18 entries allowed")
+
         @parent.dirty = true
+        @colormap = new Float32Array(18 * 5)
+        @colorCount = data.length
 
-        data = data[..]
-        data.unshift L.Util.extend({}, data[0])
-        data.push L.Util.extend({}, data[data.length-1])
-        data[0].alpha = 0
-        data[0].center = 0
-        data[data.length-1].center = data[data.length-2].center + 1
-
-        @colormap = new Float32Array(17 * 5)
         for color, i in data
             @colormap[i*5+0] = color.r/255
             @colormap[i*5+1] = color.g/255

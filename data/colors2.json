@@ -1,0 +1,50 @@
+{
+    "transparency 0-1 and 15-16": [
+        {"r":255, "g":0, "b":0, "alpha":0.0, "center":0},
+        {"r":255, "g":0, "b":0, "alpha":1.0, "center":1},
+        {"r":0, "g":255, "b":0, "alpha":1.0, "center":7.5},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":15},
+        {"r":0, "g":0, "b":255, "alpha":0.0, "center":16}
+    ],
+    "transparency 1-2 and 14-15": [
+        {"r":255, "g":0, "b":0, "alpha":0.0, "center":1},
+        {"r":255, "g":0, "b":0, "alpha":1.0, "center":2},
+        {"r":0, "g":255, "b":0, "alpha":1.0, "center":7.5},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":14},
+        {"r":0, "g":0, "b":255, "alpha":0.0, "center":15}
+    ],
+    "transparency 1-5": [
+        {"r":255, "g":0, "b":0, "alpha":0.0, "center":1},
+        {"r":255, "g":0, "b":0, "alpha":1.0, "center":5},
+        {"r":0, "g":255, "b":0, "alpha":1.0, "center":7.5},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":15},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":15}
+    ],
+    "invalid": [
+        {"r":255, "g":0, "b":0, "alpha":0.0, "center":1},
+        {"r":255, "g":0, "b":0, "alpha":1.0, "center":5},
+        {"r":0, "g":255, "b":0, "alpha":1.0, "center":7.5},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":14},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":15},
+        {"r":255, "g":0, "b":0, "alpha":0.0, "center":1},
+        {"r":255, "g":0, "b":0, "alpha":0.0, "center":1},
+        {"r":255, "g":0, "b":0, "alpha":0.0, "center":1},
+        {"r":255, "g":0, "b":0, "alpha":1.0, "center":5},
+        {"r":0, "g":255, "b":0, "alpha":1.0, "center":7.5},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":14},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":15},
+        {"r":255, "g":0, "b":0, "alpha":0.0, "center":1},
+        {"r":255, "g":0, "b":0, "alpha":1.0, "center":5},
+        {"r":0, "g":255, "b":0, "alpha":1.0, "center":7.5},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":14},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":15},
+        {"r":255, "g":0, "b":0, "alpha":1.0, "center":5},
+        {"r":0, "g":255, "b":0, "alpha":1.0, "center":7.5},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":14},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":15},
+        {"r":255, "g":0, "b":0, "alpha":1.0, "center":5},
+        {"r":0, "g":255, "b":0, "alpha":1.0, "center":7.5},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":14},
+        {"r":0, "g":0, "b":255, "alpha":1.0, "center":15}
+    ]
+}

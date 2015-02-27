@@ -431,14 +431,12 @@ sys.defModule('/texture-layer/base', function(exports, require, fs) {
 
     BaseLayer.prototype.setColormap = function(data) {
       var color, i, _i, _len, _ref;
+      if (data.length > 18) {
+        throw new Error("Color map is too long, maximum of 18 entries allowed");
+      }
       this.parent.dirty = true;
-      data = data.slice(0);
-      data.unshift(L.Util.extend({}, data[0]));
-      data.push(L.Util.extend({}, data[data.length - 1]));
-      data[0].alpha = 0;
-      data[0].center = 0;
-      data[data.length - 1].center = data[data.length - 2].center + 1;
-      this.colormap = new Float32Array(17 * 5);
+      this.colormap = new Float32Array(18 * 5);
+      this.colorCount = data.length;
       for (i = _i = 0, _len = data.length; _i < _len; i = ++_i) {
         color = data[i];
         this.colormap[i * 5 + 0] = color.r / 255;
@@ -478,7 +476,7 @@ sys.defModule('/texture-layer/base', function(exports, require, fs) {
   })();
   return exports;
 });
-sys.defFile("/texture-layer/display.shader", "#file /texture-layer/display.shader\nvarying vec2 vTexcoord;\n\nvertex:\n    attribute vec2 position, texcoord;\n    uniform float verticalSize, verticalOffset;\n    \n    struct SlippyBounds{\n        vec2 southWest, northEast;\n    };\n    uniform SlippyBounds slippyBounds;\n\n    void main(){\n        vTexcoord = texcoord;\n        vec2 pos = position;\n\n        pos = linstepOpen(slippyBounds.southWest, slippyBounds.northEast, pos)*2.0-1.0;\n\n        pos = vec2(\n            pos.x,\n            pos.y*verticalSize + verticalOffset\n        );\n\n        gl_Position = vec4(pos, 0, 1);\n    }\n\nfragment:\n    uniform vec2 sourceSize;\n\n    uniform float colormap[18*5];\n    uniform float minIntensity;\n    uniform float maxIntensity;\n                \n    float fade(vec3 range, float value){\n        return clamp(\n            linstep(range.x, range.y, value) - linstep(range.y, range.z, value),\n        0.0, 1.0);\n    }\n    \n    vec4 colorFun(float intensity){\n        vec4 result = vec4(0.0);\n        for(int i=1; i<15; i++){\n            float r = colormap[i*5+0];\n            float g = colormap[i*5+1];\n            float b = colormap[i*5+2];\n            float a = colormap[i*5+3];\n            vec3 color = degammasRGB(vec3(r,g,b));\n\n            float left = colormap[(i-1)*5+4];\n            float center = colormap[i*5+4];\n            float right = colormap[(i+1)*5+4];\n\n            result += fade(vec3(left, center, right), intensity) * vec4(color, a);\n        }\n        return result;\n    }\n   \n    void main(){\n        float intensityScalar = texture2DInterp(vTexcoord, sourceSize).r;\n        float intensity = mix(minIntensity, maxIntensity, intensityScalar);\n        vec4 color = colorFun(intensity);\n        gl_FragColor = vec4(gammasRGB(color.rgb)*color.a, color.a);\n        //gl_FragColor = vec4(vec3(intensityScalar), 1);\n    }");
+sys.defFile("/texture-layer/display.shader", "#file /texture-layer/display.shader\nvarying vec2 vTexcoord;\n\nvertex:\n    attribute vec2 position, texcoord;\n    uniform float verticalSize, verticalOffset;\n    \n    struct SlippyBounds{\n        vec2 southWest, northEast;\n    };\n    uniform SlippyBounds slippyBounds;\n\n    void main(){\n        vTexcoord = texcoord;\n        vec2 pos = position;\n\n        pos = linstepOpen(slippyBounds.southWest, slippyBounds.northEast, pos)*2.0-1.0;\n\n        pos = vec2(\n            pos.x,\n            pos.y*verticalSize + verticalOffset\n        );\n\n        gl_Position = vec4(pos, 0, 1);\n    }\n\nfragment:\n    uniform vec2 sourceSize;\n\n    uniform float colormap[18*5];\n    uniform float minIntensity;\n    uniform float maxIntensity;\n    uniform int colorCount;\n                \n    float fade(vec3 range, float value){\n        return clamp(\n            linstep(range.x, range.y, value) - linstep(range.y, range.z, value),\n        0.0, 1.0);\n    }\n    \n    vec4 colorFun(float intensity){\n        vec4 result = vec4(0.0);\n        for(int i=1; i<17; i++){\n            float r = colormap[i*5+0];\n            float g = colormap[i*5+1];\n            float b = colormap[i*5+2];\n            float a = colormap[i*5+3];\n            vec3 color = degammasRGB(vec3(r,g,b));\n\n            float left = colormap[(i-1)*5+4];\n            float center = colormap[i*5+4];\n            float right = colormap[(i+1)*5+4];\n\n            result += fade(vec3(left, center, right), intensity) * vec4(color, a);\n            if(i > colorCount){\n                break;\n            }\n        }\n        return result;\n    }\n   \n    void main(){\n        float intensityScalar = texture2DInterp(vTexcoord, sourceSize).r;\n        float intensity = mix(minIntensity, maxIntensity, intensityScalar);\n        vec4 color = colorFun(intensity);\n        gl_FragColor = vec4(gammasRGB(color.rgb)*color.a, color.a);\n        //gl_FragColor = vec4(vec3(intensityScalar), 1);\n    }");
 sys.defModule('/texture-layer/module', function(exports, require, fs) {
   exports.Video = require('video');
   return exports;
@@ -608,7 +606,7 @@ sys.defModule('/texture-layer/video', function(exports, require, fs) {
     TextureVideoLayer.prototype.draw = function(southWest, northEast, verticalSize, verticalOffset) {
       var _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6;
       if (this.haveData && this.haveColormap) {
-        this.state.float('colormap', this.colormap).float('mixFactor', this.mixFactor).float('time', this.time).vec2('sourceSize', this.texture1.width, this.texture1.height).sampler('source0', this.texture0).sampler('source1', this.texture1).float('minIntensity', 0).float('maxIntensity', 255).float('verticalSize', verticalSize).float('verticalOffset', verticalOffset).vec2('slippyBounds.southWest', southWest.x, southWest.y).vec2('slippyBounds.northEast', northEast.x, northEast.y);
+        this.state.float('colormap', this.colormap).float('mixFactor', this.mixFactor).float('time', this.time).vec2('sourceSize', this.texture1.width, this.texture1.height).sampler('source0', this.texture0).sampler('source1', this.texture1).float('minIntensity', 0).float('maxIntensity', 255).int('colorCount', this.colorCount).float('verticalSize', verticalSize).float('verticalOffset', verticalOffset).vec2('slippyBounds.southWest', southWest.x, southWest.y).vec2('slippyBounds.northEast', northEast.x, northEast.y);
         if (this.fadeFun === 'noise' || this.fadeFun === 'fbm') {
           if (this.fadeParams != null) {
             this.state.float('spatialFrequency', (_ref3 = this.fadeParams.spatialFrequency) != null ? _ref3 : 10).float('timeFrequency', (_ref2 = this.fadeParams.timeFrequency) != null ? _ref2 : this.bitmaps.length / 2).float('amplitude', (_ref1 = this.fadeParams.amplitude) != null ? _ref1 : 1.0).float('attack', (_ref = this.fadeParams.attack) != null ? _ref : 0.25);
