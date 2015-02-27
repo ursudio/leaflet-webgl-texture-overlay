@@ -40,6 +40,9 @@ fragment:
     vec4 colorFun(float intensity){
         vec4 result = vec4(0.0);
         for(int i=1; i<17; i++){
+            if(i >= colorCount-1){
+                break;
+            }
             float r = colormap[i*5+0];
             float g = colormap[i*5+1];
             float b = colormap[i*5+2];
@@ -51,9 +54,6 @@ fragment:
             float right = colormap[(i+1)*5+4];
 
             result += fade(vec3(left, center, right), intensity) * vec4(color, a);
-            if(i > colorCount){
-                break;
-            }
         }
         return result;
     }

@@ -59,9 +59,9 @@ exports = class BaseLayer
         @colorCount = data.length
 
         for color, i in data
-            @colormap[i*5+0] = color.r/255
-            @colormap[i*5+1] = color.g/255
-            @colormap[i*5+2] = color.b/255
+            @colormap[i*5+0] = (color.r ? 0)/255
+            @colormap[i*5+1] = (color.g ? 0)/255
+            @colormap[i*5+2] = (color.b ? 0)/255
             @colormap[i*5+3] = color.alpha ? 1
             @colormap[i*5+4] = color.center
 
