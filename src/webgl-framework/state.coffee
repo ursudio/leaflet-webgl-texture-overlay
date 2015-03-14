@@ -52,6 +52,18 @@ exports = class State
 
         @depthTest = params.depthTest ? false
         @depthWrite = params.depthWrite ? true
+        if params.colorWrite?
+            if params.colorWrite instanceof Array
+                @colorWrite = params.colorWrite
+            else
+                @colorWrite = [params.colorWrite, params.colorWrite, params.colorWrite, params.colorWrite]
+        else
+            @colorWrite = [true,true,true,true]
+
+        if params.depthFunc?
+            @depthFunc = @gl[params.depthFunc.toUpperCase()] ? @gl.LESS
+        else
+            @depthFunc = @gl.LESS
 
         if params.cull?
             @cullFace = @gl[params.cull.toUpperCase()] ? @gl.BACK
@@ -137,10 +149,14 @@ exports = class State
             @setPointers()
 
     setupState: ->
-        if @depthTest then @gl.enable @gl.DEPTH_TEST
-        else @gl.disable @gl.DEPTH_TEST
+        if @depthTest
+            @gl.enable @gl.DEPTH_TEST
+            @gl.depthFunc @depthFunc
+        else
+            @gl.disable @gl.DEPTH_TEST
 
         @gl.depthMask @depthWrite
+        @gl.colorMask @colorWrite[0], @colorWrite[1], @colorWrite[2], @colorWrite[3]
 
         if @cullFace
             @gl.enable @gl.CULL_FACE

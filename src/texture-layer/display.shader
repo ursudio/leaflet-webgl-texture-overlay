@@ -62,6 +62,6 @@ fragment:
         float intensityScalar = texture2DInterp(vTexcoord, sourceSize).r;
         float intensity = mix(minIntensity, maxIntensity, intensityScalar);
         vec4 color = colorFun(intensity);
-        gl_FragColor = vec4(gammasRGB(color.rgb)*color.a, color.a);
-        //gl_FragColor = vec4(vec3(intensityScalar), 1);
+        //gl_FragColor = vec4(gammasRGB(color.rgb)*color.a, color.a);
+        gl_FragColor = vec4(gammasRGB(color.rgb), color.a);
     }

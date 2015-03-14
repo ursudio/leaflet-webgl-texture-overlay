@@ -31,6 +31,9 @@ preprocess = (relname, source) ->
 
 if require.main is module
     code = ['(function(){']
+    code.push(
+        fs.readFileSync(path.join(__dir, 'lib/tessellate.js'), encoding:'utf-8')
+    )
 
     code.push CoffeeScript.compile(
         fs.readFileSync(path.join(__dir, 'lib/require.coffee'), encoding:'utf-8')

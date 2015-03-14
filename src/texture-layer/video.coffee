@@ -26,6 +26,9 @@ exports = class TextureVideoLayer extends BaseLayer
                     {name:'position', size:2}
                     {name:'texcoord', size:2}
                 ]
+            #depthTest: true
+            #depthWrite: false
+            #depthFunc: 'less'
        
         @texture0 = @gf.texture2D
             channels: 'luminance'

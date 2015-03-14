@@ -140,6 +140,11 @@ exports = class WebGLFramework
         @gl.clearColor(r, g, b, a)
         @gl.clear(@gl.COLOR_BUFFER_BIT)
         return @
+    
+    clearDepth: (value=1) ->
+        @gl.clearDepth value
+        @gl.clear @gl.DEPTH_BUFFER_BIT
+        return @
 
     frameStart: ->
         if fullscreen.element()?

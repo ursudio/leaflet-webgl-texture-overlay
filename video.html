@@ -47,6 +47,10 @@
 
                 var overlay = L.webglTextureOverlay()
                     .addTo(map);
+                    
+                $.getJSON('data/foothills.json', function(clipRegion){
+                    overlay.setClip(clipRegion);
+                });
 
                 var intensityLayer = overlay.addLayer();
 

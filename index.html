@@ -67,9 +67,11 @@
                 }
                 setInterpolation();
 
+                $.getJSON('data/foothills.json', function(clipRegion){
+                    overlay.setClip(clipRegion);
+                });
 
                 $.getJSON('data/colors2.json', function(colors){
-                    console.log(colors);
                     var setColor = function(){
                         intensityLayer.setColormap(colors[colorSelect.val()]);
                     };
