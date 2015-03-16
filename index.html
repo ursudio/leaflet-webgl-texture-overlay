@@ -37,9 +37,10 @@
                 xhr.send();
             }
 
+            var map;
+
             $(function(){
-                var map = L.map('map').setView([59.984134,-119.960313], 6);
-                //var map = L.map('map').setView([52,-85], 6);
+                map = L.map('map').setView([55.034,-115.136], 6);
 
                 L.tileLayer('http://otile{s}.mqcdn.com/tiles/1.0.0/map/{z}/{x}/{y}.jpg', { 
                     subdomains: '1234'
@@ -67,11 +68,32 @@
                 }
                 setInterpolation();
 
-                $.getJSON('data/foothills.json', function(clipRegion){
-                    overlay.setClip(clipRegion);
-                });
+                var setClip = function(){
+                    $.getJSON(clipSelect.val(), function(clipRegion){
+                        overlay.setClip(clipRegion);
+                    });
+                };
 
-                $.getJSON('data/colors2.json', function(colors){
+                var clipSelect = $('<select></select>')
+                    .appendTo('body')
+                    .css({position:'absolute', top:70, right:10})
+                    .change(setClip);
+
+                $('<option></option>')
+                    .text('data/polygon-no-holes.json')
+                    .appendTo(clipSelect);
+                $('<option></option>')
+                    .text('data/polygon-holes.json')
+                    .appendTo(clipSelect);
+                $('<option></option>')
+                    .text('data/multipolygon-no-holes.json')
+                    .appendTo(clipSelect);
+                $('<option></option>')
+                    .text('data/multipolygon-holes.json')
+                    .appendTo(clipSelect);
+                setClip();
+
+                $.getJSON('data/colors.json', function(colors){
                     var setColor = function(){
                         intensityLayer.setColormap(colors[colorSelect.val()]);
                     };

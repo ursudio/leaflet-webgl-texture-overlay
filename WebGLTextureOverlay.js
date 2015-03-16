@@ -6484,7 +6484,11 @@ sys.defModule('/clip/module', function(exports, require, fs) {
       startTime = performance.now();
       fills = [];
       holes = [];
-      _ref = this.data;
+      if (typeof(this.data[0][0][0]) === 'number') {
+        _ref = [this.data];
+      } else {
+        _ref = this.data;
+      }
       for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
         region = _ref[i];
         fills.push(this.tessellateCoords(region[0]));

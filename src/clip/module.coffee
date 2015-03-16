@@ -81,7 +81,11 @@ exports = class ClipRegion
         startTime = performance.now()
         fills = []
         holes = []
-        for region, i in @data
+        if typeof @data[0][0][0] is 'number'
+            regions = [@data]
+        else
+            regions = @data
+        for region, i in regions
             fills.push @tessellateCoords(region[0])
 
             for i in [1...region.length]
