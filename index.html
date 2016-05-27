@@ -80,6 +80,9 @@
                     .change(setClip);
 
                 $('<option></option>')
+                    .text('data/large-multipolygon.json')
+                    .appendTo(clipSelect);
+                $('<option></option>')
                     .text('data/polygon-no-holes.json')
                     .appendTo(clipSelect);
                 $('<option></option>')

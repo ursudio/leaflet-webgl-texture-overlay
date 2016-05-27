@@ -6071,18 +6071,21 @@ var tessellate = function(loops)
     if (loops.length === 0)
         throw "Expected at least one loop";
 
-    var vertices = [];
+    var vertices = loops;
     var boundaries = [0];
 
-    for (var l=0; l<loops.length; ++l) {
+    boundaries.push(vertices.length);
+    /*for (var l=0; l<loops.length; ++l) {
         var loop = loops[l];
         if (loop.length % 2 !== 0)
             throw "Expected even number of coordinates";
-        vertices.push.apply(vertices, loop);
-        boundaries.push(vertices.length);
-    }
-
+        // vertices.push.apply(vertices, loop);
+        vertices = vertices.concat( Array.prototype.slice.call( loop ) );
+        // Array.prototype.push.apply(vertices, loop);
+    }*/
+      
     var p = Module._malloc(vertices.length * 8);
+
 
     for (i=0; i<vertices.length; ++i)
         Module.setValue(p+i*8, vertices[i], "double");
@@ -6107,7 +6110,6 @@ var tessellate = function(loops)
 
     var result_vertices = new Float64Array(nverts * 2);
     var result_triangles = new Int32Array(ntris * 3);
-
     for (i=0; i<2*nverts; ++i) {
         result_vertices[i] = Module.getValue(pcoordinates_out + i*8, 'double');
     }
@@ -6415,7 +6417,7 @@ sys.defModule('/clip/module', function(exports, require, fs) {
 
     ClipRegion.prototype.check = function() {
       if (this.dirty && (this.overlay.map != null) && (this.data != null)) {
-        this.tessellate();
+        this._tessellate();
         return true;
       } else {
         return false;
@@ -6434,23 +6436,32 @@ sys.defModule('/clip/module', function(exports, require, fs) {
     };
 
     ClipRegion.prototype.project = function(coords) {
-      var i, item, result, x, y, _i, _len, _ref;
-      result = new Float32Array(coords.length * 2);
+      var i, item, result, x, y, _i, _len, _ref,
+        map = this.overlay.map,
+        crs = map.options.crs,
+        project = crs.latLngToPoint.bind( crs );
+
+        var start = performance.now();
+      result = [];
+
       for (i = _i = 0, _len = coords.length; _i < _len; i = ++_i) {
         item = coords[i];
-        _ref = this.overlay.map.project({
-          lat: item[1],
-          lng: item[0]
-        }, 0).divideBy(256), x = _ref.x, y = _ref.y;
-        result[i * 2 + 0] = x;
-        result[i * 2 + 1] = y;
+        _ref = project({
+          lat : item[1], 
+          lng : item[0] 
+        }, 0);
+        result.push( _ref.x / 256 );
+        result.push( _ref.y / 256 );
       }
+
+      console.log('project time: ', performance.now() - start);
+
       return result;
     };
 
     ClipRegion.prototype.tessellateCoords = function(coords) {
       var i, idx, mesh, vertices, _i, _len, _ref;
-      mesh = tessellate.tessellate([this.project(coords)]);
+      mesh = tessellate.tessellate( this.project(coords) );
       vertices = new Float32Array(mesh.triangles.length * 2);
       _ref = mesh.triangles;
       for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
@@ -6478,6 +6489,12 @@ sys.defModule('/clip/module', function(exports, require, fs) {
       return result;
     };
 
+    ClipRegion.prototype._tessellate = function() {
+      if (!this.raf) {
+        this.raf = requestAnimationFrame(this.tessellate.bind(this));
+      }
+    };
+
     ClipRegion.prototype.tessellate = function() {
       var fills, holes, i, region, startTime, _i, _j, _len, _ref, _ref1;
       this.dirty = false;
@@ -6497,7 +6514,9 @@ sys.defModule('/clip/module', function(exports, require, fs) {
         }
       }
       this.fill.vertices(this.collate(fills));
-      return this.holes.vertices(this.collate(holes));
+      this.holes.vertices(this.collate(holes));
+      this.raf = null;
+      return this.overlay.dirty = true;
     };
 
     return ClipRegion;
@@ -6516,6 +6535,7 @@ sys.defModule('/module', function(exports, require, fs) {
     function WebGLTextureOverlay() {
       this.draw = __bind(this.draw, this);
       this.canvas = L.DomUtil.create('canvas', 'leaflet-webgl-texture-overlay');
+      this.canvas.style.position = 'absolute';
       this.gf = new WebGLFramework({
         canvas: this.canvas,
         premultipliedAlpha: false
@@ -6541,8 +6561,6 @@ sys.defModule('/module', function(exports, require, fs) {
       this.canvas.height = size.y;
       L.DomUtil.addClass(this.canvas, 'leaflet-zoom-animated');
       this.map.getPanes().overlayPane.appendChild(this.canvas);
-      this.map.on('movestart', this.move, this);
-      this.map.on('move', this.move, this);
       this.map.on('moveend', this.move, this);
       this.map.on('resize', this.resize, this);
       return this.map.on('zoomanim', this.zoomanim, this);
@@ -6556,8 +6574,6 @@ sys.defModule('/module', function(exports, require, fs) {
     WebGLTextureOverlay.prototype.onRemove = function(map) {
       this.running = false;
       map.getPanes().overlayPane.removeChild(this.canvas);
-      this.map.off('movestart', this.move, this);
-      this.map.off('move', this.move, this);
       this.map.off('moveend', this.move, this);
       this.map.off('resize', this.resize, this);
       this.map.off('zoomanim', this.zoomanim, this);
